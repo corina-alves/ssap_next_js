@@ -1,0 +1,14 @@
+node_modules
+.next
+.cache
+storage
+.env
+.env.local
+.env.*.local
+.env.docker
+*.tsbuildinfo
+.git
+.azure
+Dockerfile
+docker-compose.yml
+.next-antigo

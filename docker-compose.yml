@@ -1,0 +1,55 @@
+# Sala de Situação — banco + migrações + aplicação.
+#
+#   cp .env.docker.example .env.docker   (e troque as senhas)
+#   docker compose up -d --build
+#   docker compose run --rm ferramentas npm run admin:criar
+#
+# A aplicação fica em http://127.0.0.1:3000 (só na própria máquina). Para
+# publicar, coloque um proxy reverso com HTTPS na frente (veja o README).
+
+name: sala-situacao
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    env_file: .env.docker
+    volumes:
+      - banco:/var/lib/postgresql
+      - ./db/docker-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Aplica as migrações e termina. Também roda scripts (admin:criar, integracoes:testar).
+  ferramentas:
+    build:
+      context: .
+      target: ferramentas
+    env_file: .env.docker
+    command: ['npm', 'run', 'db:migrar']
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: app
+    restart: unless-stopped
+    env_file: .env.docker
+    ports:
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - arquivos:/dados/storage # PDFs e documentos — FAZER BACKUP
+      - cache:/dados/cache # cache das integrações — descartável
+    depends_on:
+      ferramentas:
+        condition: service_completed_successfully
+
+volumes:
+  banco:
+  arquivos:
+  cache:

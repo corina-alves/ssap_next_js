@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+.env
+.env.local
+.env.*.local
+.env.docker
+
+# Cache das integrações externas (descartável)
+.cache/
+
+# Arquivos enviados e PDFs gerados (fora da pasta pública)
+storage/
+
+# Build antigo, guardado porque foi a fonte da recuperação do código (pode apagar)
+.next-antigo/
