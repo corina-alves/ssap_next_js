@@ -92,10 +92,18 @@ export const ATALHOS: Record<string, Atalho[]> = {
   cetesb: [
     {
       modulo: 'boletins',
-      titulo: 'Rede pluviométrica — Alto Tietê',
-      descricao: 'Acumulado mensal de todos os postos, por sub-bacia, com exportação CSV.',
-      href: '/acesso/boletim_spaguas_cetesb/dashboard_chuvas.php',
-      icone: 'bi-cloud-rain',
+      titulo: 'Boletins mensais do Alto Tietê — Chuva-Vazão, Mananciais e Exutórios',
+      descricao: 'Monta o boletim do mês com dados do SIBH, do SSD e da CETESB; ajuste valores e análises na tela, use "Gerar PDF" e cadastre o PDF como boletim.',
+      href: '/acesso/boletim_integrado/boletim',
+      icone: 'bi-clipboard2-data',
+      permissao: 'criar_boletim',
+    },
+    {
+      modulo: 'boletins',
+      titulo: 'Dados dos exutórios',
+      descricao: 'Cadastro do que não tem fonte automática: operação diária de Pirapora e Billings/Pedreira e vazão e DBO da carga orgânica.',
+      href: '/acesso/boletim_integrado/exutorios',
+      icone: 'bi-pencil-square',
       permissao: 'criar_boletim',
     },
   ],

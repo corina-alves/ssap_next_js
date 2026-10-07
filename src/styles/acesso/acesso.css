@@ -310,7 +310,7 @@ a.acesso-atalho:hover { border-color: var(--ac-azul); background: #f5f9fc; }
 .dc-kpi--emergencia { --kpi-cor: #b0009e; }
 .dc-kpi--alerta { --kpi-cor: #e67e00; }
 .dc-kpi--atencao { --kpi-cor: #c9a800; }
-.dc-kpi--normal { --kpi-cor: #0d7ea4; }
+.dc-kpi--normal { --kpi-cor: #2e9e4f; }
 .dc-selo {
     display: inline-block; padding: 2px 9px; border-radius: 999px;
     font-size: .74rem; font-weight: 700; white-space: nowrap;
@@ -319,8 +319,8 @@ a.acesso-atalho:hover { border-color: var(--ac-azul); background: #f5f9fc; }
 .dc-selo--emergencia { background: #d400bd; color: #fff; }
 .dc-selo--alerta { background: #ff9f1a; color: #1d1d1d; }
 .dc-selo--atencao { background: #ffe14d; color: #1d1d1d; }
-.dc-selo--normal { background: #e1f1f8; color: #0b5a78; }
-.dc-ugrhi { border-left: 5px solid #0d7ea4; }
+.dc-selo--normal { background: #e3f4e7; color: #1b6b34; }
+.dc-ugrhi { border-left: 5px solid #2e9e4f; }
 .dc-ugrhi--extravasamento { border-left-color: #d0021b; }
 .dc-ugrhi--emergencia { border-left-color: #d400bd; }
 .dc-ugrhi--alerta { border-left-color: #ff9f1a; }
@@ -353,7 +353,7 @@ a.acesso-atalho:hover { border-color: var(--ac-azul); background: #f5f9fc; }
 .dc-mk-flu--emergencia { background: #b0009e; }
 .dc-mk-flu--alerta { background: #e67e00; }
 .dc-mk-flu--atencao { background: #c9a800; }
-.dc-mk-flu--normal { background: #0d7ea4; }
+.dc-mk-flu--normal { background: #2e9e4f; }
 .dc-legenda { background: rgba(255, 255, 255, .92); border: 1px solid #c9d2db; border-radius: 6px; padding: 6px 10px; font-size: 12px; line-height: 1.5; color: #1b2733; }
 .dc-legenda__item { display: flex; align-items: center; gap: 8px; }
 .dc-legenda__item .dc-mk-flu { flex: 0 0 13px; }
@@ -365,3 +365,46 @@ a.acesso-atalho:hover { border-color: var(--ac-azul); background: #f5f9fc; }
     text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; }
 .leaflet-tooltip.dc-rotulo::before { display: none; }
 .dc-popup { font-size: 13px; line-height: 1.35; }
+
+/* Defesa Civil — regionais (defesa_civil/mapa-regionais.tsx) e abas das mensagens */
+.dc-mapa--regionais { height: 540px; }
+.dc-mk-flu--grande { width: 17px; height: 16px; filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff); }
+.dc-reg-icone { overflow: visible; }
+.dc-reg {
+    position: absolute; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 7px; border-radius: 10px; border: 1px solid #0a4677; background: rgba(255, 255, 255, .9);
+    color: #0a4677; font-size: 11px; line-height: 1.5; white-space: nowrap; cursor: pointer;
+}
+.dc-reg b { font-weight: 700; }
+.dc-reg i { font-style: normal; font-weight: 800; min-width: 16px; padding: 0 4px; border-radius: 8px; text-align: center; background: #0a4677; color: #fff; }
+.dc-reg--vazia { border-color: #9aa7b3; color: #5b6b7b; }
+.dc-reg--atencao { border-color: #c9a800; background: #fff8cf; color: #1d1d1d; }
+.dc-reg--atencao i { background: #c9a800; }
+.dc-reg--alerta { border-color: #e67e00; background: #ffe7c7; color: #1d1d1d; }
+.dc-reg--alerta i { background: #e67e00; }
+.dc-reg--emergencia { border-color: #b0009e; background: #fbdcf7; color: #1d1d1d; }
+.dc-reg--emergencia i { background: #b0009e; }
+.dc-reg--extravasamento { border-color: #d0021b; background: #fddfe2; color: #1d1d1d; }
+.dc-reg--extravasamento i { background: #d0021b; }
+.dc-legenda__divisa { display: inline-block; flex: 0 0 13px; height: 0; border-top: 2px solid #0a4677; }
+.dc-regionais { max-height: 540px; overflow-y: auto; }
+.dc-regionais thead th { position: sticky; top: 0; background: #fff; z-index: 1; }
+.dc-abas .nav-link { font-size: .88rem; font-weight: 600; padding: .4rem .8rem; }
+.dc-abas__conteudo { border: 1px solid var(--bs-border-color, #dee2e6); border-top: 0; border-radius: 0 0 8px 8px; padding: 12px; }
+.dc-reg-ugrhi {
+    position: absolute; transform: translate(-50%, -50%); white-space: nowrap; font-size: 12px; font-weight: 700; color: #7a2e8e;
+    text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 3px #fff;
+}
+.dc-legenda__simbolo--tracejado { width: 13px; height: 0; border-radius: 0; border-top: 2px dashed #7a2e8e; }
+
+/* Botão "voltar ao topo" das páginas longas da área restrita. */
+.acesso-subir {
+    position: fixed; right: 22px; bottom: 22px; z-index: 1040; width: 44px; height: 44px; display: grid; place-items: center;
+    border: 0; border-radius: 50%; background: var(--ac-azul, #0b4f8a); color: #fff; font-size: 1.2rem; line-height: 1; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(11, 79, 138, .38); opacity: 0; visibility: hidden; transform: translateY(12px);
+    transition: opacity .25s ease, transform .25s ease, visibility .25s;
+}
+.acesso-subir.is-visible { opacity: 1; visibility: visible; transform: translateY(0); }
+.acesso-subir:hover { background: #073457; }
+.acesso-subir:focus-visible { outline: 3px solid rgba(11, 79, 138, .35); outline-offset: 2px; }
+@media print { .acesso-subir { display: none; } }

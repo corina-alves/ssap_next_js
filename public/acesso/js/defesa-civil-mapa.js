@@ -4,15 +4,17 @@
    <button data-dc-enviar="mapa-6">  imagem do mapa + texto da caixa "mensagem" → WhatsApp
    <button data-dc-baixar="mapa-6">  baixa a imagem do mapa (JPG — bem menor que PNG para o WhatsApp)
    A imagem é desenhada num <canvas>: mapa de fundo (Esri World Topo Map, com CORS), limite da UGRHI,
-   estações, chuva, título, legenda e fonte. */
+   estações, chuva, título, legenda e fonte. As divisas das regionais da Defesa Civil
+   (geo/regionais_defesa_civil_linhas.json) entram tracejadas, com o nome de cada regional. */
 (function () {
     'use strict';
     if (!window.L) return;
 
     var numBR = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     var COR_LIMITE = '#0a4677';
-    var COR_PLU = '#6c7f91';
-    var COR_SITUACAO = { extravasamento: '#d0021b', emergencia: '#b0009e', alerta: '#e67e00', atencao: '#c9a800', normal: '#0d7ea4' };
+    var COR_REGIONAL = '#7a2e8e';
+    var COR_PLU = '#2e9e4f';
+    var COR_SITUACAO = { extravasamento: '#d0021b', emergencia: '#b0009e', alerta: '#e67e00', atencao: '#c9a800', normal: '#2e9e4f' };
     var COR_FLU_SEM_COTA = '#5b6b7b';
     var ROTULO_SITUACAO = { extravasamento: 'Extravasamento', emergencia: 'Emergência', alerta: 'Alerta', atencao: 'Atenção', normal: 'Normal' };
     // Classes de chuva (mm): [a partir de, cor, rótulo]
@@ -25,6 +27,21 @@
     ];
     var MAX_ROTULOS = 15; // valores escritos ao lado dos maiores postos de chuva
     var mapas = {};
+    var regionais = null; // { regionais: [{nome, centro:[lat,lng]}], linhas: [[[lat,lng]...]] }
+
+    /** Divisas e nomes das regionais num mapa já montado. */
+    function desenharRegionais(item) {
+        if (!regionais || item.regionais) return;
+        var mapa = item.mapa;
+        item.regionais = L.layerGroup().addTo(mapa);
+        regionais.linhas.forEach(function (l) {
+            L.polyline(l, { pane: 'regionais', color: COR_REGIONAL, weight: 2, opacity: 0.9, dashArray: '6 5', interactive: false }).addTo(item.regionais);
+        });
+        regionais.regionais.forEach(function (r) {
+            var rotulo = texto('span', 'dc-reg-ugrhi', r.nome);
+            L.marker(r.centro, { pane: 'regionais', interactive: false, icon: L.divIcon({ className: 'dc-reg-icone', html: rotulo, iconSize: [0, 0] }) }).addTo(item.regionais);
+        });
+    }
 
     function corChuva(v) {
         for (var i = 0; i < CLASSES_CHUVA.length; i++) if (v >= CLASSES_CHUVA[i][0]) return CLASSES_CHUVA[i][1];
@@ -56,6 +73,7 @@
             attribution: 'Base: &copy; Esri, HERE, Garmin, USGS, colaboradores do OpenStreetMap'
         }).addTo(mapa);
         mapa.attributionControl.setPrefix('Leaflet');
+        mapa.createPane('regionais').style.zIndex = 450; // divisas das regionais: acima do limite, abaixo dos marcadores
         mapa.createPane('chuva').style.zIndex = 650; // chuva acima das estações
         mapa.createPane('rotulos').style.zIndex = 660;
 
@@ -80,8 +98,8 @@
             }
         });
 
-        legenda(cfg).addTo(mapa);
-        mapas[el.id] = { mapa: mapa, cfg: cfg };
+        mapas[el.id] = { mapa: mapa, cfg: cfg, legenda: legenda(cfg).addTo(mapa) };
+        desenharRegionais(mapas[el.id]);
     }
 
     function itensLegenda(cfg) {
@@ -95,6 +113,7 @@
         cfg.estacoes.forEach(function (e) { if (e.t === 'flu') sit[e.s || ''] = true; });
         Object.keys(ROTULO_SITUACAO).forEach(function (s) { if (sit[s]) itens.push({ forma: 'triangulo', cor: COR_SITUACAO[s], classe: s, rotulo: 'Fluviométrica — ' + ROTULO_SITUACAO[s].toLowerCase() }); });
         if (sit['']) itens.push({ forma: 'triangulo', cor: COR_FLU_SEM_COTA, classe: 'sem-cota', rotulo: 'Fluviométrica (sem cota)' });
+        if (regionais) itens.push({ forma: 'tracejado', cor: COR_REGIONAL, rotulo: 'Regionais da Defesa Civil' });
         return itens;
     }
 
@@ -106,7 +125,7 @@
                 var linha = texto('div', 'dc-legenda__item');
                 var simbolo = i.forma === 'triangulo' ? texto('span', 'dc-mk-flu dc-mk-flu--' + i.classe)
                     : texto('span', 'dc-legenda__simbolo dc-legenda__simbolo--' + i.forma);
-                if (i.cor && i.forma !== 'triangulo') simbolo.style.backgroundColor = i.cor;
+                if (i.cor && i.forma !== 'triangulo' && i.forma !== 'tracejado') simbolo.style.backgroundColor = i.cor;
                 linha.appendChild(simbolo);
                 linha.appendChild(texto('span', '', i.rotulo));
                 div.appendChild(linha);
@@ -177,6 +196,27 @@
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
+        // regionais da Defesa Civil: divisas tracejadas e nomes
+        if (regionais) {
+            ctx.save();
+            ctx.strokeStyle = COR_REGIONAL; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+            regionais.linhas.forEach(function (l) {
+                ctx.beginPath();
+                l.forEach(function (c, i) { var p = pt(c[0], c[1]); if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); });
+                ctx.stroke();
+            });
+            ctx.setLineDash([]);
+            ctx.font = 'bold 12px system-ui, Segoe UI, Arial, sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            regionais.regionais.forEach(function (r) {
+                var p = pt(r.centro[0], r.centro[1]);
+                if (p.x < 0 || p.y < 0 || p.x > tam.x || p.y > tam.y) return;
+                ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.strokeText(r.nome, p.x, p.y);
+                ctx.fillStyle = COR_REGIONAL; ctx.fillText(r.nome, p.x, p.y);
+            });
+            ctx.restore();
+        }
+
         // estações
         cfg.estacoes.forEach(function (e) {
             if (e.t !== 'plu') return;
@@ -220,6 +260,10 @@
             if (i.forma === 'circulo') { ctx.beginPath(); ctx.arc(cx, cy, 6, 0, 2 * Math.PI); ctx.fillStyle = i.cor; ctx.fill(); }
             if (i.forma === 'ponto') { ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 2 * Math.PI); ctx.fillStyle = i.cor; ctx.fill(); }
             if (i.forma === 'triangulo') { triangulo(ctx, cx, cy, 12); ctx.fillStyle = i.cor; ctx.fill(); }
+            if (i.forma === 'tracejado') {
+                ctx.save(); ctx.strokeStyle = i.cor; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+                ctx.beginPath(); ctx.moveTo(cx - 8, cy); ctx.lineTo(cx + 8, cy); ctx.stroke(); ctx.restore();
+            }
             ctx.fillStyle = '#1b2733';
             ctx.fillText(i.rotulo, lx + 30, cy);
         });
@@ -229,7 +273,7 @@
         ctx.fillStyle = '#5b6b7b';
         ctx.font = '11px system-ui, Segoe UI, Arial, sans-serif';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Fonte: SIBH — SP Águas · Limite das UGRHIs: DataGEO · Mapa de fundo: © Esri', 14, CAB + tam.y + ROD / 2);
+        ctx.fillText('Fonte: SIBH — SP Águas · Limite das UGRHIs: DataGEO · Regionais: Defesa Civil · Mapa de fundo: © Esri', 14, CAB + tam.y + ROD / 2);
 
         return new Promise(function (ok, erro) {
             try {
@@ -261,6 +305,21 @@
     document.querySelectorAll('[data-dc-mapa]').forEach(function (el) {
         try { montar(el); } catch (e) { el.textContent = 'Não foi possível montar o mapa.'; }
     });
+
+    // As divisas chegam depois: entram nos mapas já montados e a legenda é refeita com o item delas.
+    fetch('/acesso/geo/regionais_defesa_civil_linhas.json')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+            if (!d || !d.linhas) return;
+            regionais = d;
+            Object.keys(mapas).forEach(function (id) {
+                var item = mapas[id];
+                desenharRegionais(item);
+                if (item.legenda) item.legenda.remove();
+                item.legenda = legenda(item.cfg).addTo(item.mapa);
+            });
+        })
+        .catch(function () { /* sem as divisas, o mapa segue como antes */ });
 
     document.querySelectorAll('[data-dc-baixar]').forEach(function (b) {
         b.addEventListener('click', function () {

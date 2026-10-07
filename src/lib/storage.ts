@@ -47,6 +47,43 @@ export async function gravar(conteudo: Uint8Array, pasta: string, ext: string): 
   };
 }
 
+/**
+ * Grava com nome legível em <pasta>/<nomeBase>.<ext>; se o nome já existe,
+ * tenta <nomeBase>_2, _3... (PDFs de boletim: uma pasta por tipo de boletim).
+ * `ocupados`: nomes que não podem ser usados mesmo sem arquivo na pasta (já
+ * registrados no banco).
+ */
+export async function gravarComNome(conteudo: Uint8Array, pasta: string, nomeBase: string, ext: string, ocupados: ReadonlySet<string> = new Set()): Promise<Gravado> {
+  if (!/^[a-z0-9_-]+(\/[a-z0-9_-]+)*$/.test(pasta) || !/^[a-z0-9_]{1,80}$/.test(nomeBase) || !/^[a-z0-9]{1,8}$/.test(ext)) {
+    throw new Error('Pasta, nome ou extensão de armazenamento inválidos.');
+  }
+  await mkdir(/*turbopackIgnore: true*/ absoluto(pasta), { recursive: true });
+  for (let i = 1; i <= 500; i++) {
+    const nomeInterno = `${nomeBase}${i > 1 ? `_${i}` : ''}.${ext}`;
+    const caminho = `${pasta}/${nomeInterno}`;
+    if (ocupados.has(nomeInterno)) continue;
+    try {
+      await writeFile(/*turbopackIgnore: true*/ absoluto(caminho), conteudo, { flag: 'wx', mode: 0o640 }); // wx: nunca sobrescreve
+      return { caminho, nomeInterno, tamanho: conteudo.byteLength, sha256: createHash('sha256').update(conteudo).digest('hex') };
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+    }
+  }
+  throw new Error('Muitos arquivos com o mesmo nome nesta pasta.');
+}
+
+/** Regrava um arquivo que sumiu do disco (a partir da cópia guardada no banco). */
+export async function regravar(caminho: string, conteudo: Uint8Array): Promise<void> {
+  const abs = absoluto(caminho);
+  await mkdir(/*turbopackIgnore: true*/ dirname(abs), { recursive: true });
+  await writeFile(/*turbopackIgnore: true*/ abs, conteudo, { mode: 0o640 });
+}
+
+/** O arquivo está no disco? */
+export async function existe(caminho: string): Promise<boolean> {
+  return stat(/*turbopackIgnore: true*/ absoluto(caminho)).then((s) => s.isFile(), () => false);
+}
+
 /** Remove um arquivo recém-gravado (quando o registro no banco falha). */
 export async function remover(caminho: string): Promise<void> {
   await rm(/*turbopackIgnore: true*/ absoluto(caminho), { force: true });

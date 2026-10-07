@@ -30,40 +30,58 @@ function revalidar(id?: number) {
   revalidatePath('/boletins', 'layout'); // páginas públicas
 }
 
+/** Página do boletim com um aviso (a mensagem aparece uma vez, no topo). */
+const ver = (id: number, p: Record<string, string>) => `/acesso/boletins/${id}?${new URLSearchParams(p)}`;
+
 export async function criarBoletimAcao(_: EstadoAdmin<ValoresBoletim>, form: FormData): Promise<EstadoAdmin<ValoresBoletim>> {
   const { a, autor, origem } = await contexto();
   const dados = lerDados(form);
   const r = await boletins.criar(a, dados, form.get('pdf'), autor, origem);
   if (!r.ok) return { erros: r.erros, valores: dados, versao: Date.now() };
   revalidar();
-  redirect(`/acesso/boletins/${r.id}?criado=1`);
+  redirect(ver(r.id, { aviso: 'criado' }));
 }
 
 export async function editarBoletimAcao(_: EstadoAdmin<ValoresBoletim>, form: FormData): Promise<EstadoAdmin<ValoresBoletim>> {
   const { a, autor, origem } = await contexto();
   const id = campoId(form);
   const dados = lerDados(form);
-  const r = await boletins.atualizar(a, id, dados, form.get('pdf'), autor, origem);
+  const pdf = form.get('pdf');
+  const r = await boletins.atualizar(a, id, dados, pdf, autor, origem);
   if (!r.ok) return { erros: r.erros, valores: dados, versao: Date.now() };
   revalidar(id);
-  return { erros: [], mensagem: r.mudou ? 'Alterações salvas (nova versão registrada).' : 'Nenhuma alteração.', versao: Date.now() };
+  redirect(ver(id, { aviso: !r.mudou ? 'sem-mudanca' : pdf instanceof File && pdf.size > 0 ? 'salvo-pdf' : 'salvo' }));
 }
 
-/** O botão clicado vem como name="acao" (cada ação é um botão de envio). */
-export async function transicionarAcao(_: EstadoAdmin, form: FormData): Promise<EstadoAdmin> {
+/**
+ * Ações sobre o registro de um boletim (formulários da lista e da página do
+ * boletim): mudança de situação, "salvar uma versão agora" e excluir. A
+ * permissão de cada passo é conferida no módulo de boletins.
+ */
+export async function acaoBoletimAcao(form: FormData): Promise<void> {
   const { a, autor, origem } = await contexto();
   const id = campoId(form);
   const acao = campo(form, 'acao');
-  const r = await boletins.transicionar(a, id, acao, campo(form, 'comentario'), autor, origem);
-  if (!r.ok) return { erros: r.erros, versao: Date.now() };
-  revalidar(id);
-  return { erros: [], mensagem: `Status alterado para "${boletins.ROTULO_STATUS[r.para]}".`, versao: Date.now() };
-}
+  const comentario = campo(form, 'comentario');
+  const erro = (erros: string[]) => redirect(ver(id, { erro: erros.join(' ') }));
 
-export async function excluirBoletimAcao(_: EstadoAdmin, form: FormData): Promise<EstadoAdmin> {
-  const { a, autor, origem } = await contexto();
-  const erros = await boletins.excluir(a, campoId(form), autor, origem);
-  if (erros.length) return { erros, versao: Date.now() };
-  revalidar();
-  redirect('/acesso/boletins?excluido=1');
+  if (acao === 'excluir') {
+    const b = await boletins.obter(id);
+    const erros = await boletins.excluir(a, id, autor, origem);
+    if (erros.length) erro(erros);
+    revalidar(id);
+    redirect(`/acesso/boletins?${new URLSearchParams({ sala: String(b?.sala_id ?? ''), aviso: b?.status === 'publicado' ? 'excluido-publicado' : 'excluido' })}`);
+  }
+  if (acao === 'salvar_versao') {
+    const r = await boletins.salvarVersao(a, id, comentario, autor, origem);
+    if (!r.ok) erro(r.erros);
+    else {
+      revalidar(id);
+      redirect(ver(id, { aviso: 'versao', v: String(r.versao) }));
+    }
+  }
+  const r = await boletins.transicionar(a, id, acao, comentario, autor, origem);
+  if (!r.ok) erro(r.erros);
+  revalidar(id);
+  redirect(ver(id, { aviso: 'acao', acao }));
 }

@@ -1,0 +1,66 @@
+/* Notas Informativas Conjuntas SP-Águas/ARSESP — estilos sobre o design system. */
+
+/* Cabeçalho: dados do documento à esquerda, cartão do PDF à direita. */
+.nota-hero { display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+.nota-hero h1 { font-size: clamp(1.7rem, 3vw, 2.6rem); font-weight: 800; line-height: 1.15; letter-spacing: -.025em; margin: 14px 0 12px; color: #fff; }
+.nota-hero__dados { display: flex; flex-wrap: wrap; gap: 8px 10px; list-style: none; padding: 0; margin: 18px 0 0; }
+.nota-hero__dados li {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16);
+    font-size: .82rem; color: #eaf4fb;
+}
+.nota-hero__cartao {
+    position: relative; z-index: 1; flex: 0 0 300px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 22px 24px; border-radius: var(--sp-radius);
+    background: #fff; color: var(--sp-ink); text-align: center;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .2);
+}
+.nota-hero__cartao img { height: 56px; width: auto; }
+.nota-hero__cartao strong { font-size: .98rem; line-height: 1.3; }
+.nota-hero__cartao span { font-size: .8rem; color: var(--sp-gray); line-height: 1.35; }
+.nota-hero__cartao .btn { margin-top: 6px; }
+@media (max-width: 991.98px) {
+    .nota-hero { flex-direction: column; align-items: flex-start; }
+    .nota-hero__cartao { flex: none; width: 100%; max-width: 340px; }
+}
+
+/* Texto: coluna de leitura centralizada no cartão. */
+.nota-texto .sssp-section-card__body { padding: 40px clamp(18px, 5vw, 56px) 44px; }
+.nota-texto .sssp-section-card__body > * { max-width: 800px; margin-left: auto; margin-right: auto; }
+.nota-texto p { margin-top: 0; margin-bottom: 1rem; color: var(--sp-ink); font-size: 1rem; line-height: 1.75; text-align: justify; }
+.nota-texto h5 {
+    margin-top: 2.2rem; margin-bottom: .9rem; padding-bottom: .45rem; border-bottom: 2px solid var(--sp-border);
+    font-size: 1.15rem; font-weight: 800; color: var(--sp-blue);
+}
+.nota-texto .sssp-section-card__body > h5:first-child { margin-top: 0; }
+.nota-texto p.nota-subtitulo { margin-top: 1.5rem; margin-bottom: .6rem; font-weight: 700; color: var(--sp-ink); text-align: left; }
+.nota-texto h6 { margin-top: 1.4rem; margin-bottom: .6rem; font-size: .9rem; font-weight: 700; color: var(--sp-gray); text-align: center; }
+.nota-texto ul { padding-left: 1.4rem; margin-bottom: 1rem; }
+.nota-texto ul li { margin-bottom: .4rem; line-height: 1.7; }
+.nota-texto ul, .nota-texto ol { box-sizing: border-box; }
+
+/* Figuras: centralizadas, sem passar da coluna. */
+.nota-texto img { display: block; max-width: 100%; height: auto; margin: 1rem auto 1.5rem; border: 1px solid var(--sp-border); border-radius: 8px; }
+.nota-texto p > img { margin-top: .75rem; }
+
+/* Quadros. */
+.nota-texto table { display: table; width: 100%; margin-bottom: 1.5rem; border-collapse: collapse; font-size: .92rem; }
+.nota-texto table th { background: var(--sp-blue); color: #fff; font-weight: 700; text-align: left; }
+.nota-texto table th, .nota-texto table td { padding: 9px 12px; border: 1px solid var(--sp-border); vertical-align: top; }
+.nota-texto table tbody tr:nth-child(even) > * { background: #f6f9fc; }
+@media (max-width: 575.98px) { .nota-texto table { display: block; overflow-x: auto; } }
+
+/* Fecho: data à direita e assinaturas centralizadas. */
+.nota-texto p.nota-data { margin-top: 2.2rem; text-align: right; font-style: italic; }
+.nota-texto p.nota-assinaturas {
+    margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--sp-border);
+    text-align: center; line-height: 1.5; color: var(--sp-gray); font-size: .92rem;
+}
+.nota-texto p.nota-assinaturas strong { display: inline-block; margin-top: .9rem; color: var(--sp-ink); font-size: 1rem; }
+.nota-texto p.nota-assinado { text-align: center; font-size: .88rem; color: var(--sp-gray); }
+
+@media print {
+    .nota-hero__cartao { display: none; }
+}

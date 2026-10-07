@@ -5,9 +5,10 @@ import { inteiro, texto } from '@/components/paginacao';
 import { Atalhos } from '@/components/site/atalhos';
 import { SelectAutoEnvio } from '@/components/site/auto-envio';
 import { Hero, Principal, Secao } from '@/components/site/layout';
-import { listarPublicos, opcoesPublicas } from '@/lib/documentos';
+import { listarPublicos, opcoesPublicas, sugestoesPublicas } from '@/lib/documentos';
 import { dataBr, tamanho } from '@/lib/formato';
 import { CATEGORIAS } from './categorias';
+import { BuscaAutocompletar } from '@/components/busca-autocompletar';
 
 export const metadata: Metadata = {
   title: 'Documentos',
@@ -20,9 +21,10 @@ export default async function Documentos({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const f = { categoria: texto(sp.categoria, 60), busca: texto(sp.q) };
   const pagina = Math.max(1, inteiro(sp.pag));
-  const [{ itens, total }, opcoes] = await Promise.all([
+  const [{ itens, total }, opcoes, sugestoes] = await Promise.all([
     listarPublicos({ categoria: f.categoria, busca: f.busca }, POR_PAGINA, (pagina - 1) * POR_PAGINA),
     opcoesPublicas(),
+    sugestoesPublicas(),
   ]);
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const url = (p: number) => `/documentos?${new URLSearchParams({ ...(f.categoria ? { categoria: f.categoria } : {}), ...(f.busca ? { q: f.busca } : {}), pag: String(p) })}`;
@@ -59,7 +61,7 @@ export default async function Documentos({ searchParams }: { searchParams: Promi
             </div>
             <div className="blt-busca">
               <i className="bi bi-search" />
-              <input type="search" name="q" defaultValue={f.busca} placeholder="Buscar no título ou na descrição..." aria-label="Buscar documento" />
+              <BuscaAutocompletar sugestoes={sugestoes} name="q" defaultValue={f.busca} placeholder="Buscar no título ou na descrição..." rotulo="Buscar documento" />
             </div>
           </form>
           {itens.length === 0 ? (

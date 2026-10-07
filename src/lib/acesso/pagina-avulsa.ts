@@ -32,7 +32,7 @@ export function paginaAvulsa(p: {
   const atributos = Object.entries(p.dados ?? {})
     .map(([k, v]) => ` data-${k}="${esc(v)}"`)
     .join('');
-  const scripts = [...(p.scripts ?? []), `${base}/boletim.js?v=${p.versao}`].map((s) => `<script src="${esc(s)}"></script>`).join('\n');
+  const scripts = [...(p.scripts ?? []), `${base}/boletim.js?v=${p.versao}`, '/acesso/js/subir.js'].map((s) => `<script src="${esc(s)}"></script>`).join('\n');
   const html = `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -41,6 +41,7 @@ export function paginaAvulsa(p: {
 <meta name="robots" content="noindex, nofollow">
 <title>${esc(p.titulo)}</title>
 <link rel="stylesheet" href="${base}/boletim.css?v=${p.versao}">
+<link rel="stylesheet" href="/acesso/css/subir.css">
 </head>
 <body${atributos}>
 <div class="barra no-print">

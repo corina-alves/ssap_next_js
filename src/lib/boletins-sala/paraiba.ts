@@ -10,7 +10,9 @@ import { buscarJson } from '../integracoes/http';
  *   - chuva acumulada em 24 h nos pluviômetros (SIBH);
  *   - previsão de chuva 24/48/72 h nos municípios (Open-Meteo);
  *   - pontos de monitoramento fora do normal (cotas de alerta do SIBH);
- *   - reservatórios do SIN na bacia (SAR/ANA): último dia e 30 dias para os gráficos.
+ *   - reservatórios do SIN na bacia (SAR/ANA): último dia e 30 dias para os gráficos;
+ *   - condições de operação da Resolução Conjunta ANA/DAEE/IGAM/INEA nº 1.382/2015,
+ *     comparadas com os dados do dia.
  * Tudo no cache das integrações (SIBH 3 min, previsão 1 h, SAR por dia).
  */
 
@@ -51,6 +53,76 @@ const RESERVATORIOS: Record<string, Record<string, string>> = {
 // Gráficos de 30 dias (afluência, defluência e volume útil), um por reservatório.
 const GRAFICOS = ['JAGUARI', 'PARAIBUNA', 'SANTA BRANCA', 'FUNIL', 'SANTA CECILIA'];
 const DIAS_GRAFICO = 30;
+
+/**
+ * Resolução Conjunta ANA/DAEE/IGAM/INEA nº 1.382, de 7 de dezembro de 2015
+ * (condições de operação do Sistema Hidráulico Paraíba do Sul).
+ */
+export const RESOLUCAO_1382 = {
+  nome: 'Resolução Conjunta ANA/DAEE/IGAM/INEA nº 1.382, de 7 de dezembro de 2015',
+  url: 'https://www.gov.br/ana/pt-br/legislacao/resolucoes/resolucoes-regulatorias/2015/1382',
+  /** Art. 1º, I: vazão mínima a jusante (m³/s). Sem chave: o SAR não informa. */
+  vazoesMinimas: [
+    { chave: 'PARAIBUNA', nome: 'Paraibuna', minima: 10, tipo: 'instantânea' },
+    { chave: 'SANTA BRANCA', nome: 'Santa Branca', minima: 30, tipo: 'instantânea' },
+    { chave: 'JAGUARI', nome: 'Jaguari', minima: 4, tipo: 'instantânea' },
+    { chave: 'FUNIL', nome: 'Funil', minima: 70, tipo: 'instantânea' },
+    { chave: 'SANTA CECILIA', nome: 'Santa Cecília', minima: 71, tipo: 'instantânea' },
+    { chave: null, nome: 'Bombeada para o rio Guandu em Santa Cecília', minima: 119, tipo: 'média diária' },
+    { chave: 'PEREIRA PASSOS', nome: 'Pereira Passos', minima: 120, tipo: 'instantânea' },
+  ],
+  /** Art. 1º, V: ordem de deplecionamento e mínimo de volume útil (%) no 1º, 2º e 3º estágios. */
+  estagios: [
+    { chave: 'FUNIL', nome: 'Funil', limites: [30, 30, 30] },
+    { chave: 'SANTA BRANCA', nome: 'Santa Branca', limites: [70, 40, 10] },
+    { chave: 'PARAIBUNA', nome: 'Paraibuna', limites: [80, 40, 5] },
+    { chave: 'JAGUARI', nome: 'Jaguari', limites: [80, 50, 20] },
+  ],
+  /** Art. 1º, III e IV, c: aumento de vazões admitido com o reservatório equivalente acima deste volume útil (%). */
+  equivalenteLimite: 80,
+  /** Art. 2º: nível mínimo operacional normal de Paraibuna (m). */
+  paraibunaNivelMinimo: 694.6,
+} as const;
+
+// Volume útil (hm³) dos quatro reservatórios de regularização, para o reservatório
+// equivalente (média do volume útil ponderada). Não constam da resolução: referência ANA/ONS.
+const VOLUME_UTIL_HM3: Record<string, number> = { PARAIBUNA: 2636, 'SANTA BRANCA': 308, JAGUARI: 793, FUNIL: 606 };
+
+/**
+ * Quantos mínimos da tabela de estágios o volume útil já rompeu: 0 = no mínimo
+ * do 1º estágio ou acima; 1 = abaixo do mínimo do 1º; 2 = abaixo do mínimo do
+ * 2º; 3 = abaixo do mínimo do 3º estágio.
+ */
+export function faixaEstagio(volume: number | null, limites: readonly number[]): number | null {
+  if (volume === null) return null;
+  return limites.filter((l) => volume < l).length;
+}
+
+type DiaSar = Record<string, { defluencia: number | null; cota: number | null; volume: number | null } | undefined>;
+
+/** Condições da resolução ao lado dos valores do dia (SAR/ANA). */
+export function situacaoResolucao(dia: DiaSar) {
+  const R = RESOLUCAO_1382;
+  const pesos = Object.entries(VOLUME_UTIL_HM3);
+  const completos = pesos.every(([k]) => typeof dia[k]?.volume === 'number');
+  const total = pesos.reduce((t, [, v]) => t + v, 0);
+  const equivalente = completos ? Math.round((pesos.reduce((t, [k, v]) => t + dia[k]!.volume! * v, 0) / total) * 100) / 100 : null;
+  const cota = dia.PARAIBUNA?.cota ?? null;
+  return {
+    nome: R.nome,
+    url: R.url,
+    vazoes: R.vazoesMinimas.map((v) => {
+      const defluencia = v.chave ? (dia[v.chave]?.defluencia ?? null) : null;
+      return { ...v, defluencia, atende: defluencia === null ? null : defluencia >= v.minima };
+    }),
+    estagios: R.estagios.map((e, i) => {
+      const volume = dia[e.chave]?.volume ?? null;
+      return { ordem: i + 1, ...e, volume, faixa: faixaEstagio(volume, e.limites) };
+    }),
+    equivalente: { volume: equivalente, limite: R.equivalenteLimite },
+    paraibuna: { cota, minimo: R.paraibunaNivelMinimo, folga: cota === null ? null : Math.round((cota - R.paraibunaNivelMinimo) * 100) / 100 },
+  };
+}
 
 const num = (v: unknown): number | null => {
   if (v === null || v === undefined || v === '') return null;
@@ -188,6 +260,7 @@ export async function dadosParaiba(atualizar = false) {
     previsao,
     pontos: { contagem, total: pontos.length, fora: pontos.filter((p) => p.situacao !== 'normal'), situacoes: SITUACOES },
     reservatorios: { data: ultimaData, destaque: DESTAQUE, lista, series },
+    resolucao: situacaoResolucao(ultimo),
     falhas: [...new Set(falhas)],
   };
 }

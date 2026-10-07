@@ -9,6 +9,8 @@ As migrações ficam em `migrations/` e são aplicadas em ordem. Cada uma roda e
 | `0003_categorias_documentos_site.sql` | Categorias de documento das páginas públicas `/documentos/<categoria>` |
 | `0005_configuracoes.sql` | Tabela `configuracoes`: valores editados pela área restrita (médias históricas do Boletim PCJ) |
 | `0004_ajustes_acesso_php.sql` | Mudanças do PHP de 02/10: permissão `administrar_boletins`, tipo Integrado SP Águas/ARSESP, nomes novos de tipos e da sala CETESB |
+| `0006_pastas_boletins_copia_banco.sql` | Pasta de cada tipo de boletim (`tipos_boletim.pasta`) e tabela `arquivos_conteudo`, com a cópia dos PDFs de boletim |
+| `0007_titulo_fixo_tipo_boletim.sql` | `tipos_boletim.titulo_fixo`: tipos em que o título do boletim é fixo ("<título> — <data de referência>"), como o Sumário Executivo Tietê Pinheiros e o Sumário Executivo Ribeira |
 
 ## Criar o banco (Windows, recomendado)
 
@@ -28,7 +30,8 @@ Nenhum usuário do sistema é criado por SQL: o administrador vem do `npm run ad
 ## Atualizar um banco existente
 
 ```powershell
-npm run db:migrar    # aplica só as migrações que faltam (usa o DATABASE_URL do .env.local)
+npm run db:migrar       # aplica só as migrações que faltam (usa o DATABASE_URL do .env.local)
+npm run arquivos:banco  # depois da 0006: leva os PDFs de boletim já enviados para a pasta do tipo e copia para o banco
 ```
 
 ## Alternativa manual com psql
@@ -57,5 +60,5 @@ Atenção: assim as tabelas pertencem ao `postgres`, e a aplicação passaria a 
 
 ## O que fica fora do banco
 
-- **Arquivos:** PDFs e documentos ficam no disco ou no Blob, e o banco guarda só os metadados.
+- **Arquivos:** documentos ficam no disco ou no Blob, e o banco guarda só os metadados. A exceção são os PDFs de boletim: ficam em `storage/boletins/<pasta do tipo>/<pasta>_<AAAAMMDD>.pdf` (diário, mensal, integrado...) e também em `arquivos_conteudo`; se o arquivo sumir da pasta, é regravado a partir do banco quando alguém o abre.
 - **Listas fixas:** atalhos das salas, estações, links e textos de rodapé ficam em arquivos de configuração.

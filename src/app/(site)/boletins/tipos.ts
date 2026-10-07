@@ -26,7 +26,7 @@ export const TIPOS_PUBLICOS = {
   // No PHP estes dois links do menu não tinham página (404); aqui listam os tipos correspondentes.
   'alto-tiete-pinheiros': {
     titulo: 'Boletim Alto Tietê Pinheiros',
-    descricao: 'Boletins integrados da UGRHI 6 e sumários executivos de cheias do Alto Tietê e do rio Pinheiros.',
+    descricao: 'Boletins Sumário Executivo Controle de cheias no Alto Tietê e Pinheiros',
     tipos: ['integrado-ugrhi6', 'sumario-tiete-pinheiros', 'integrado-diario', 'integrado-mensal'],
   },
   ribeira: {

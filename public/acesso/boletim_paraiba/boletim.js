@@ -64,12 +64,14 @@
 
     // ------------------------------------------------------------ montagem
     function montar() {
+        paginaResolucao();
         document.querySelectorAll('[data-campo="data_curta"]').forEach(function (e) { e.textContent = dataBR(dados.gerado_em.slice(0, 10)); });
         document.querySelectorAll('[data-campo="data_hora"]').forEach(function (e) { e.textContent = dataBR(dados.gerado_em); });
         chuva();
         previsao();
         pontos();
         reservatorios();
+        resolucao();
         desenharGraficos();
         aplicarFixos();
     }
@@ -236,6 +238,81 @@
                 ed('td', k + 'afl', n(x.afluencia, 1), 'num'), ed('td', k + 'defl', n(x.defluencia, 1), 'num')
             ]));
         });
+        tab.appendChild(corpo);
+    }
+
+    /** Página "4.1": condições da Resolução nº 1.382/2015 ao lado dos valores do dia. Criada uma vez, depois da página dos reservatórios. */
+    function paginaResolucao() {
+        if (document.getElementById('tab-res-vazoes')) return;
+        var anterior = document.getElementById('tab-res').closest('.pagina');
+        var pag = el('section', { classe: 'pagina' }, [
+            anterior.querySelector('.cab').cloneNode(true),
+            el('h2', { contenteditable: 'true', 'data-k': 'sec_resol', texto: '4.1 CONDIÇÕES DE OPERAÇÃO — RESOLUÇÃO CONJUNTA ANA/DAEE/IGAM/INEA Nº 1.382/2015' }),
+            el('div', { classe: 'cartoes cartoes--resol', id: 'cartoes-resol' }),
+            el('p', { classe: 'texto', contenteditable: 'true', 'data-k': 'txt_resol', 'data-auto': 'txt_resol' }),
+            el('h3', { classe: 'subtitulo', contenteditable: 'true', 'data-k': 'sub_resol_vaz', texto: 'Vazão mínima a jusante dos aproveitamentos (art. 1º, I)' }),
+            el('table', { classe: 'tab', id: 'tab-res-vazoes' }),
+            el('p', { classe: 'nota', contenteditable: 'true', 'data-k': 'nota_resol_vaz', texto: 'Os limites da resolução são de vazão instantânea; a defluência mostrada é a média do dia informada ao SAR/ANA. A vazão bombeada para o rio Guandu não é informada pelo SAR.' }),
+            el('h3', { classe: 'subtitulo', contenteditable: 'true', 'data-k': 'sub_resol_est', texto: 'Limites mínimos de volume útil por estágio de deplecionamento (art. 1º, V)' }),
+            el('table', { classe: 'tab', id: 'tab-res-estagios' }),
+            el('p', { classe: 'nota', contenteditable: 'true', 'data-k': 'nota_resol_est', texto: 'A mudança de estágio só ocorre quando todos os reservatórios atingem os seus mínimos, admitida variação de 5% do valor de referência (art. 1º, § 1º). Reservatório equivalente: média do volume útil de Paraibuna, Santa Branca, Jaguari e Funil, ponderada pelo volume útil de cada um.' }),
+            el('div', { classe: 'rodape', contenteditable: 'true', 'data-k': 'rodape_resol', texto: 'Fonte: ANA — Resolução Conjunta ANA/DAEE/IGAM/INEA nº 1.382, de 7 de dezembro de 2015; ANA/SAR — ONS.' })
+        ]);
+        anterior.parentNode.insertBefore(pag, anterior.nextSibling);
+    }
+
+    function resolucao() {
+        var r = dados.resolucao, data = dados.reservatorios.data;
+        var FAIXAS = ['Acima do mínimo do 1º estágio', 'Abaixo do mínimo do 1º estágio', 'Abaixo do mínimo do 2º estágio', 'Abaixo do mínimo do 3º estágio'];
+
+        var box = limpar('cartoes-resol');
+        var eq = r.equivalente, p = r.paraibuna;
+        box.appendChild(cartao(n(eq.volume, 1) + '%', 'Reservatório equivalente', 'referência de ' + eq.limite + '% (art. 1º, III e IV)', eq.volume === null ? '' : eq.volume >= eq.limite ? 'cartao--normal' : 'cartao--atencao'));
+        box.appendChild(cartao(n(p.cota, 2), 'Cota de Paraibuna (m)', 'mínimo operacional normal: ' + n(p.minimo, 2) + ' m', p.folga === null ? '' : p.folga >= 0 ? 'cartao--normal' : 'cartao--emergencia'));
+        var abaixoVaz = r.vazoes.filter(function (v) { return v.atende === false; });
+        box.appendChild(cartao(String(abaixoVaz.length), 'Abaixo da vazão mínima', 'de ' + r.vazoes.filter(function (v) { return v.atende !== null; }).length + ' aproveitamentos com dado', abaixoVaz.length ? 'cartao--alerta' : 'cartao--normal'));
+        var abaixoEst = r.estagios.filter(function (e) { return e.faixa !== null && e.faixa > 0; });
+        box.appendChild(cartao(String(abaixoEst.length), 'Abaixo do mínimo do 1º estágio', 'de ' + r.estagios.length + ' reservatórios de regularização', abaixoEst.length ? 'cartao--atencao' : 'cartao--normal'));
+
+        auto('txt_resol', !data ? 'Dados de reservatórios indisponíveis no momento (SAR/ANA).'
+            : 'Em ' + dataBR(data) + ', o reservatório equivalente do Sistema Hidráulico Paraíba do Sul estava com ' + n(eq.volume, 1) + '% do volume útil'
+              + (p.folga === null ? '' : ' e Paraibuna operava ' + n(Math.abs(p.folga), 2) + ' m ' + (p.folga >= 0 ? 'acima' : 'abaixo') + ' do nível mínimo operacional normal (' + n(p.minimo, 2) + ' m)') + '. '
+              + (abaixoVaz.length ? 'Defluência abaixo da vazão mínima da resolução em: ' + abaixoVaz.map(function (v) { return v.nome + ' (' + n(v.defluencia, 1) + ' m³/s, mínimo ' + n(v.minima, 0) + ')'; }).join('; ') + '. '
+                  : 'Todas as defluências informadas atendiam às vazões mínimas da resolução. ')
+              + (abaixoEst.length ? 'Volume útil abaixo do mínimo do 1º estágio de deplecionamento em: ' + abaixoEst.map(function (e) { return e.nome + ' (' + n(e.volume, 1) + '%)'; }).join('; ') + '.'
+                  : 'Os quatro reservatórios de regularização estavam acima dos mínimos do 1º estágio de deplecionamento.'));
+
+        var tab = limpar('tab-res-vazoes');
+        tab.appendChild(el('thead', {}, [el('tr', {}, [th('Aproveitamento'), th('Vazão mínima (m³/s)'), th('Tipo'), th('Defluência do dia (m³/s)'), th('Diferença (m³/s)'), th('Situação')])]));
+        var corpo = el('tbody');
+        r.vazoes.forEach(function (v, i) {
+            var k = 'resol|vaz|' + i + '|';
+            var dif = v.defluencia === null ? null : v.defluencia - v.minima;
+            var sit = el('td', { classe: 'centro' }, [v.atende === null ? '—' : el('span', { classe: 'selo selo--' + (v.atende ? 'normal' : 'alerta'), texto: v.atende ? 'Atende' : 'Abaixo do mínimo' })]);
+            corpo.appendChild(el('tr', {}, [
+                ed('td', k + 'nome', v.nome), ed('td', k + 'min', n(v.minima, 0), 'num'), ed('td', k + 'tipo', v.tipo, 'centro'),
+                ed('td', k + 'defl', n(v.defluencia, 1), 'num'),
+                ed('td', k + 'dif', dif === null ? '—' : (dif >= 0 ? '+' : '') + n(dif, 1), 'num ' + (dif === null ? '' : dif >= 0 ? 'desce' : 'sobe')), sit
+            ]));
+        });
+        tab.appendChild(corpo);
+
+        tab = limpar('tab-res-estagios');
+        tab.appendChild(el('thead', {}, [el('tr', {}, [th('Ordem'), th('Reservatório'), th('Volume útil (%)'), th('1º estágio (%)'), th('2º estágio (%)'), th('3º estágio (%)'), th('Situação do volume')])]));
+        corpo = el('tbody');
+        r.estagios.forEach(function (e) {
+            var k = 'resol|est|' + e.chave + '|';
+            corpo.appendChild(el('tr', {}, [
+                ed('td', k + 'ordem', e.ordem + 'ª', 'centro'), ed('td', k + 'nome', e.nome), ed('td', k + 'vol', n(e.volume, 2), 'num'),
+                ed('td', k + 'l1', n(e.limites[0], 0), 'num'), ed('td', k + 'l2', n(e.limites[1], 0), 'num'), ed('td', k + 'l3', n(e.limites[2], 0), 'num'),
+                e.faixa === null ? el('td', { classe: 'centro', texto: '—' })
+                    : el('td', { classe: 'centro' }, [el('span', { classe: 'selo selo--' + ['normal', 'atencao', 'alerta', 'emergencia'][e.faixa], texto: FAIXAS[e.faixa] })])
+            ]));
+        });
+        corpo.appendChild(el('tr', { classe: 'media' }, [
+            el('td', { texto: '' }), ed('td', 'resol|eq|nome', 'Reservatório equivalente'), ed('td', 'resol|eq|vol', n(eq.volume, 2), 'num'),
+            el('td', { texto: '' }), el('td', { texto: '' }), el('td', { texto: '' }), el('td', { texto: '' })
+        ]));
         tab.appendChild(corpo);
     }
 

@@ -15,6 +15,7 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "integracoes:testar": "tsx scripts/testar-integracoes.ts",
     "db:migrar": "tsx scripts/migrar.ts",
+    "arquivos:banco": "tsx scripts/arquivos-banco.ts",
     "admin:criar": "tsx scripts/criar-admin.ts",
     "senha:link": "tsx scripts/link-senha.ts"
   },

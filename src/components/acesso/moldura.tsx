@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import type { ItemMenu, Menu } from '@/lib/acesso/painel';
+import { BotaoTopo } from '@/components/site/botao-topo';
 
 /**
  * Moldura das páginas logadas — mesma estrutura e classes de
@@ -109,6 +110,8 @@ export function Moldura({
           </ul>
         </div>
       </header>
+
+      <BotaoTopo classe="acesso-subir" />
 
       <div className="acesso-corpo">
         <nav className="acesso-menu offcanvas-lg offcanvas-start" id="acessoMenu" tabIndex={-1} aria-label="Menu principal">

@@ -22,10 +22,7 @@ const PAGINAS = {
   'situacao-outorgas': 'novo',
   monitoramento_hidrologico: 'novo',
   protocolo: 'antigo',
-  nota_informativa_conjunta: 'antigo',
-  nota_informativa_conjunta2: 'antigo',
   deliberacao_dss: 'antigo',
-  resolucao_regulatorio_ana_spaguas: 'antigo',
 };
 
 // Páginas que existem no Next com o mesmo nome do PHP (sem .php).
@@ -33,6 +30,8 @@ const ROTAS = new Set([
   ...Object.keys(PAGINAS),
   'reservatorios', 'precipitacao', 'vazao', 'previsao', 'previsao-reservatorios', 'boletins',
   'curva_contingencia', 'evolucao-sim-cant', 'vazoes-outorgadas', 'atos-administrativos-outorga',
+  // páginas próprias em React (texto em src/conteudo/)
+  'resolucao_regulatorio_ana_spaguas', 'nota_informativa_conjunta', 'nota_informativa_conjunta2',
 ]);
 
 function recortar(html, tipo, pagina) {
@@ -116,7 +115,7 @@ const css = join(RAIZ, 'src', 'styles', 'legado');
 for (const a of ['pagina-protocolo-escassez', 'pagina-nota-informativa', 'pagina-monitoramento-hidrologico', 'pagina-atos-outorga', 'pagina-curva-contingencia']) {
   copyFileSync(join(PHP_DIR, 'assets', 'css', `${a}.css`), join(css, `${a}.css`));
 }
-for (const a of ['estilo', 'protocolo_escassez', 'resolucao_ana_daee']) {
+for (const a of ['estilo', 'protocolo_escassez']) {
   const texto = readFileSync(join(PHP_DIR, 'assets', 'css', `${a}.css`), 'utf8');
   const regrasGlobais = texto.match(/@(keyframes|font-face|import)[^{;]*/g) ?? [];
   writeFileSync(join(css, `antigo-${a}.css`), `/* ${a}.css do PHP, restrito a .doc-legado (gerado por scripts/capturar-legado.mjs). */\n.doc-legado {\n${texto}\n}\n`);
@@ -124,14 +123,19 @@ for (const a of ['estilo', 'protocolo_escassez', 'resolucao_ana_daee']) {
 }
 
 // Sumários Executivos de Cheias (acesso/sumario_executivo_cheias): o HTML
-// original vai inteiro, sem alteração, e é servido pela rota depois do login;
+// original vai inteiro (só mudam os endereços que ele chama) e é servido pela rota depois do login;
 // imagens e contornos (sem dado restrito) ficam em public/acesso/sumario_executivo_cheias/.
 {
   const pasta = 'sumario_executivo_cheias';
   const origem = join(PHP_DIR, 'acesso', pasta);
   const publico = join(RAIZ, 'public', 'acesso', pasta);
   for (const chave of ['ribeira_iguape', 'tiete_pinheiros']) {
-    const html = readFileSync(join(origem, `sumario_executivo_${chave}.html`), 'utf8');
+    // As chamadas do sumário (proxy do SIBH e captura do diagrama) ganham os nomes das rotas do Next.
+    const html = readFileSync(join(origem, `sumario_executivo_${chave}.html`), 'utf8')
+      .replaceAll('api_proxy.php', 'api-sibh')
+      .replaceAll('capturar_diagrama_ribeira.php', 'capturar-diagrama-ribeira')
+      .replaceAll('capturar_diagrama.php', 'capturar-diagrama');
+    if (/[\w-]+\.php/.test(html)) throw new Error(`sumário ${chave}: sobrou chamada a .php`);
     writeFileSync(
       join(destino, `sumario_cheias_${chave}.ts`),
       `// Gerado por scripts/capturar-legado.mjs a partir de acesso/${pasta}/sumario_executivo_${chave}.html — não edite à mão.\nexport default ${JSON.stringify(html)};\n`,

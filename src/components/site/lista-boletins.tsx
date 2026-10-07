@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { dataBr } from '@/lib/formato';
-import { contagemPorTipo, listarPublicados, type BoletimPublico } from '@/lib/publico';
+import { contagemPorTipo, listarPublicados, sugestoesBoletins, type BoletimPublico } from '@/lib/publico';
 import { SelectAutoEnvio } from './auto-envio';
+import { BuscaAutocompletar } from '@/components/busca-autocompletar';
 
 /**
  * Lista pública de boletins — mesmo markup de boletins.php /
@@ -43,9 +44,10 @@ export async function ListaBoletins({
   const tipoEscolhido = comFiltroTipo ? um(sp.tipo) : '';
   const filtroTipos = tipoEscolhido && tipoEscolhido !== 'todos' ? [tipoEscolhido] : tipos;
 
-  const [{ total: totalGeral }, contagem] = await Promise.all([
+  const [{ total: totalGeral }, contagem, sugestoes] = await Promise.all([
     listarPublicados({ tipos: tipos }, 1),
     comFiltroTipo ? contagemPorTipo() : Promise.resolve([]),
+    sugestoesBoletins(filtroTipos),
   ]);
   const { total } = await listarPublicados({ tipos: filtroTipos, busca }, 1);
   const paginas = Math.max(1, Math.ceil(total / pp));
@@ -108,7 +110,7 @@ export async function ListaBoletins({
           </div>
           <div className="blt-busca">
             <i className="bi bi-search" />
-            <input type="search" name="q" defaultValue={busca} placeholder="Buscar por título, data ou período..." aria-label="Buscar boletim" />
+            <BuscaAutocompletar sugestoes={sugestoes} name="q" defaultValue={busca} placeholder="Buscar por título, data ou período..." rotulo="Buscar boletim" />
           </div>
         </form>
 

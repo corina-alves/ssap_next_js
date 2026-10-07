@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { inteiro, Paginacao, texto } from '@/components/paginacao';
-import { listarAuditoria, opcoesFiltro } from '@/lib/admin/auditoria';
+import { listarAuditoria, opcoesFiltro, sugestoesUsuarios } from '@/lib/admin/auditoria';
 import { salas as listarSalas } from '@/lib/admin/usuarios';
 import { acl } from '@/lib/auth/acl';
 import { dataHora } from '@/lib/formato';
+import { BuscaAutocompletar } from '@/components/busca-autocompletar';
 
 export const metadata: Metadata = { title: 'Auditoria' };
 
@@ -47,7 +48,7 @@ export default async function PaginaAuditoria({
       </p>
       <section className="cartao">
         <form className="filtros" method="get">
-          <input type="search" name="usuario" defaultValue={f.usuario} placeholder="Usuário" aria-label="Usuário" />
+          <BuscaAutocompletar sugestoes={await sugestoesUsuarios(escopo)} name="usuario" defaultValue={f.usuario} placeholder="Usuário" rotulo="Usuário" />
           <select name="sala" defaultValue={f.sala || ''} aria-label="Sala">
             <option value="">Todas as salas</option>
             {salas.map((s) => (

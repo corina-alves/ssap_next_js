@@ -98,3 +98,15 @@ export async function contagemPorTipo(sala?: string): Promise<{ slug: string; no
     [sala ?? null],
   );
 }
+
+/** Títulos dos boletins publicados (os mais recentes primeiro), para o autocompletar da busca. */
+export async function sugestoesBoletins(tipos?: string[]): Promise<string[]> {
+  const filtro = tipos?.length ? tipos.filter((t) => SLUG.test(t)) : null;
+  const r = await query<{ titulo: string }>(
+    `SELECT titulo FROM vw_boletins_publicados
+      WHERE $1::text[] IS NULL OR tipo_slug = ANY($1::text[])
+      GROUP BY titulo ORDER BY max(data_referencia) DESC LIMIT 300`,
+    [filtro],
+  );
+  return r.map((x) => x.titulo);
+}

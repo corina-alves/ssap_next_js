@@ -3,6 +3,7 @@ import '@/styles/legado/pagina-atos-outorga.css';
 import { SelectAutoEnvio } from '@/components/site/auto-envio';
 import { Hero, Principal, Secao } from '@/components/site/layout';
 import { ATOS } from './atos';
+import { BuscaAutocompletar } from '@/components/busca-autocompletar';
 
 export const metadata: Metadata = {
   title: 'Atos Administrativos de Outorga',
@@ -10,6 +11,16 @@ export const metadata: Metadata = {
 };
 
 const SISTEMAS = [...new Set(ATOS.map((a) => a.sistema))];
+
+/** Sugestões da busca: ato (tipo e número), sistema, órgão, município, ano e assunto. */
+const SUGESTOES = [
+  ...ATOS.map((a) => `${a.tipo} ${a.numero}`),
+  ...SISTEMAS,
+  ...ATOS.map((a) => a.orgao),
+  ...ATOS.map((a) => a.municipio),
+  ...[...new Set(ATOS.map((a) => a.data.slice(-4)))].sort().reverse(),
+  ...ATOS.map((a) => a.assunto),
+];
 
 /** Endereço do PDF, codificando cada segmento (há nomes com espaço e acento). */
 const pdf = (rel: string) => `/legado/${rel.split('/').map(encodeURIComponent).join('/')}`;
@@ -52,7 +63,7 @@ export default async function AtosOutorga({ searchParams }: { searchParams: Prom
             </div>
             <div className="sssp-field" style={{ flex: 1, minWidth: 240 }}>
               <label htmlFor="q">Buscar</label>
-              <input type="search" id="q" name="q" defaultValue={q} placeholder="Nº, ano, órgão, assunto..." />
+              <BuscaAutocompletar sugestoes={SUGESTOES} id="q" name="q" defaultValue={q} placeholder="Nº, ano, órgão, assunto..." />
             </div>
           </form>
 

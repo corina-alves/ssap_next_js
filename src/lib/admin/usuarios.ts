@@ -327,3 +327,9 @@ function paraAuditoria(u: Usuario | null) {
   const { nome, email, login, status, deve_trocar_senha, perfisGlobais, salas } = u;
   return { nome, email, login, status, deve_trocar_senha, perfisGlobais, salas };
 }
+
+/** Nomes e logins dos usuários, para o autocompletar da busca. */
+export async function sugestoesBusca(): Promise<string[]> {
+  const r = await query<{ nome: string; login: string }>('SELECT nome, login FROM usuarios WHERE excluido_em IS NULL ORDER BY nome LIMIT 500');
+  return r.flatMap((u) => [u.nome, u.login]);
+}

@@ -3,8 +3,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { inteiro, Paginacao, texto } from '@/components/paginacao';
 import { acl } from '@/lib/auth/acl';
-import { categorias, listar, salasDocumentos } from '@/lib/documentos';
+import { categorias, listar, salasDocumentos, sugestoesTitulos } from '@/lib/documentos';
 import { dataBr, extensao, tamanho } from '@/lib/formato';
+import { BuscaAutocompletar } from '@/components/busca-autocompletar';
 
 export const metadata: Metadata = { title: 'Documentos' };
 
@@ -45,7 +46,7 @@ export default async function PaginaDocumentos({
       {sp.excluido && <div className="alerta alerta-ok">Documento excluído.</div>}
       <section className="cartao">
         <form className="filtros" method="get">
-          <input type="search" name="busca" defaultValue={f.busca} placeholder="Buscar no título ou na descrição" aria-label="Buscar" />
+          <BuscaAutocompletar sugestoes={await sugestoesTitulos(salas.map((s) => s.id))} name="busca" defaultValue={f.busca} placeholder="Buscar no título ou na descrição" rotulo="Buscar" />
           {salas.length > 1 && (
             <select name="sala" defaultValue={f.sala || ''} aria-label="Sala">
               <option value="">Todas as salas</option>

@@ -21,6 +21,8 @@ const CAMINHO_ESTACOES = 'stations?serializer=complete&station_type_id=2';
 const UGRHI = 6;
 /** O SIBH aceita no máximo 10 postos por consulta; cada lote falha sozinho. */
 const POSTOS_POR_LOTE = 10;
+/** Quanto a consulta do mês espera pelos lotes antes de responder com o que já chegou. */
+const PRAZO_MS = 90_000;
 
 /** Sub-bacias da UGRHI 6, na ordem do boletim. */
 export const SUBBACIAS: Record<string, string> = {
@@ -109,6 +111,8 @@ export type Posto = {
   nome: string;
   municipio: string;
   proprietario: string;
+  /** Código alternativo do posto no SIBH (o que os boletins antigos usavam). */
+  alt_prefix: string;
   situacao_posto: 'ativo';
   subbacia: string;
   subbacia_nome: string;
@@ -123,24 +127,31 @@ const coordenada = (v: unknown) => (texto(v) === '' || !Number.isFinite(Number(v
 /**
  * Postos pluviométricos ativos do Alto Tietê, a partir do cadastro completo do
  * SIBH: ativo é o posto com transmissão "ok"; entra o que é da UGRHI 6 (ou,
- * sem UGRHI no cadastro, o que cai dentro de um polígono de sub-bacia).
+ * sem UGRHI no cadastro, o que cai dentro de um polígono de sub-bacia). Com
+ * o critério "operacao" vale a regra dos boletins mensais: posto em operação
+ * no cadastro (transmitindo ou não) e dentro de um polígono de sub-bacia.
  */
-export function postosAtivos(cadastro: unknown[]): Posto[] {
+export function postosAtivos(cadastro: unknown[], criterio: 'transmissao' | 'operacao' = 'transmissao'): Posto[] {
   const postos: Posto[] = [];
   const vistos = new Set<string>();
   for (const bruto of cadastro) {
     if (!bruto || typeof bruto !== 'object') continue;
     const e = bruto as Record<string, unknown>;
-    const transmissao = texto(e.transmission_status).toLowerCase();
-    if (transmissao !== '' && transmissao !== 'ok') continue;
-    if (['0', 'false', 'nao', 'não'].includes(texto(e.operation_status).toLowerCase())) continue;
+    if (criterio === 'operacao') {
+      // regra dos boletins mensais: posto em operação no cadastro, com ou sem transmissão em dia
+      if (texto(e.operation_status) !== '1') continue;
+    } else {
+      const transmissao = texto(e.transmission_status).toLowerCase();
+      if (transmissao !== '' && transmissao !== 'ok') continue;
+      if (['0', 'false', 'nao', 'não'].includes(texto(e.operation_status).toLowerCase())) continue;
+    }
     const lat = coordenada(e.latitude);
     const lng = coordenada(e.longitude);
     if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
     const ugrhi = texto(e.ugrhi_cod);
     if (ugrhi !== '' && Number(ugrhi) !== UGRHI) continue;
     const sub = subbaciaDoPonto(lng, lat);
-    if (!sub || (ugrhi === '' && sub.metodo !== 'poligono')) continue;
+    if (!sub || ((ugrhi === '' || criterio === 'operacao') && sub.metodo !== 'poligono')) continue;
     const id = texto(e.id);
     const codigo = texto(e.prefix) || id;
     const unico = id ? `id:${id}` : `geo:${codigo}|${lat.toFixed(6)}|${lng.toFixed(6)}`;
@@ -148,7 +159,7 @@ export function postosAtivos(cadastro: unknown[]): Posto[] {
     vistos.add(unico);
     postos.push({
       id_sibh: id, codigo, nome: texto(e.name) || codigo || 'Posto SIBH', municipio: texto(e.city_name), proprietario: texto(e.station_owner),
-      situacao_posto: 'ativo', subbacia: sub.slug, subbacia_nome: SUBBACIAS[sub.slug]!, lat, lng, classificacao_espacial: sub.metodo,
+      alt_prefix: texto(e.alt_prefix), situacao_posto: 'ativo', subbacia: sub.slug, subbacia_nome: SUBBACIAS[sub.slug]!, lat, lng, classificacao_espacial: sub.metodo,
     });
   }
   return postos.sort((a, b) => (a.subbacia_nome < b.subbacia_nome ? -1 : a.subbacia_nome > b.subbacia_nome ? 1 : a.codigo < b.codigo ? -1 : a.codigo > b.codigo ? 1 : 0));
@@ -275,9 +286,15 @@ export async function redeMensal(ano: number, mes: number) {
   const pedidos: Record<string, { ids: number[]; ini: number; fim: number; grupo: 'day'; ttlSeg: number; timeoutMs: number }> = {};
   for (let i = 0; i < ids.length; i += POSTOS_POR_LOTE) {
     const lote = ids.slice(i, i + POSTOS_POR_LOTE);
-    pedidos[`${ano}-${mes}:${lote.join('-')}`] = { ids: lote, ini, fim, grupo: 'day', ttlSeg: mesCorrente ? 30 * 60 : 12 * 3600, timeoutMs: 35_000 };
+    pedidos[`${ano}-${mes}:${lote.join('-')}`] = { ids: lote, ini, fim, grupo: 'day', ttlSeg: mesCorrente ? 30 * 60 : 12 * 3600, timeoutMs: 120_000 };
   }
-  const respostas = Object.values(await medicoes('sibh_rede', pedidos));
+  // A primeira consulta de um mês leva ~12 s por lote no SIBH (depois ele guarda a resposta).
+  // Passado o prazo, devolve o que chegou; os lotes pendentes terminam em segundo plano e
+  // ficam no cache para a próxima atualização da página.
+  const prazo = new Promise<null>((ok) => setTimeout(ok, PRAZO_MS, null));
+  const respostas = await Promise.all(
+    Object.entries(pedidos).map(([chave, p]) => Promise.race([medicoes('sibh_rede', { [chave]: p }).then((r) => r[chave] ?? null), prazo])),
+  );
   const respondidos = respostas.filter((r) => r !== null).length;
 
   const mensais = consolidar(postos, respostas.flatMap((r) => r ?? []), ano, mes);
@@ -295,7 +312,12 @@ export async function redeMensal(ano: number, mes: number) {
   };
   const avisos: string[] = [];
   if (metadados.divergencia) avisos.push(`Foram identificados ${postos.length} postos ativos; o esperado é ${POSTOS_ESPERADOS}.`);
-  if (metadados.consulta_parcial) avisos.push('Alguns lotes de medições não responderam. Os demais postos foram mantidos.');
+  if (metadados.consulta_parcial) {
+    avisos.push(
+      `O SIBH respondeu ${respondidos} de ${respostas.length} lotes de medições até agora (a primeira consulta de um mês leva alguns minutos). ` +
+        'Os postos dos lotes pendentes aparecem como "sem dados"; clique em Atualizar daqui a pouco para completar.',
+    );
+  }
   return {
     ok: true,
     periodo: { ano, mes, dias },

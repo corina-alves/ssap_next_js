@@ -5,7 +5,9 @@ import { ScriptsLegado } from '@/components/acesso/scripts-legado';
 import { SelectAutoEnvio } from '@/components/site/auto-envio';
 import limites from '@/conteudo/ugrhi.json';
 import { acl } from '@/lib/auth/acl';
+import { REGIONAIS, regionalDoPonto } from '@/lib/hidrologia/regionais-defesa-civil';
 import {
+  coordenadasPostos,
   HORAS_CHUVA,
   hora,
   LIMITE_CHUVA_MM,
@@ -20,6 +22,7 @@ import {
   type Posto,
   type Situacao,
 } from '@/lib/hidrologia/situacao-rios';
+import { MapaRegionais, type PostoMapa, type RegionalMapa } from './mapa-regionais';
 
 export const metadata: Metadata = { title: 'Defesa Civil' };
 
@@ -49,18 +52,43 @@ const fmtDataHora = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Pa
 const fmtArquivo = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 /**
- * Defesa Civil — painel de alerta dos rios, córregos e piscinões por UGRHI,
- * com o texto de resposta pronto para copiar e o mapa da UGRHI (limite, chuva
- * acumulada acima de 10 mm e estações telemétricas), que vira imagem para o
- * WhatsApp. Aberto a quem vê o painel de alguma Sala de Situação.
+ * Defesa Civil — painel de alerta dos rios, córregos e piscinões.
+ *   1. Resumo do estado e mapa das regionais da Defesa Civil, com os pontos
+ *      monitorados na cor da situação e a contagem por regional.
+ *   2. Por UGRHI: mapa (limite, chuva acumulada acima de 10 mm e estações
+ *      telemétricas, que vira imagem para o WhatsApp), as mensagens prontas
+ *      para copiar e as tabelas dos pontos.
+ * Aberto a quem vê o painel de alguma Sala de Situação.
  */
 export default async function DefesaCivil({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const a = await acl();
   if (!a.podeEmAlguma('visualizar_dashboard')) redirect('/acesso/sem-acesso');
 
   const sp = await searchParams;
-  const situacao = await situacaoRios(um(sp.atualizar) === '1');
+  const [situacao, coordenadas] = await Promise.all([situacaoRios(um(sp.atualizar) === '1'), coordenadasPostos()]);
   const { postos } = situacao;
+
+  // Regional da Defesa Civil de cada ponto (pela coordenada do posto no SIBH).
+  const regionalDe = new Map<string, number>();
+  const postosMapa: PostoMapa[] = [];
+  for (const p of postos) {
+    const c = coordenadas[p.id];
+    if (!c) continue;
+    const r = regionalDoPonto(c.lat, c.lng);
+    if (r !== null) regionalDe.set(p.id, r);
+    postosMapa.push({ id: p.id, rotulo: `${p.prefixo} — ${p.nome}`, cidade: p.cidade, lat: c.lat, lng: c.lng, situacao: p.situacao, regional: r === null ? null : REGIONAIS[r]!.nome });
+  }
+  const nomeRegional = (p: Posto) => (regionalDe.has(p.id) ? REGIONAIS[regionalDe.get(p.id)!]!.nome : '—');
+  const regionais = REGIONAIS.map((r, i) => {
+    const lista = postos.filter((p) => regionalDe.get(p.id) === i); // já em ordem de gravidade
+    const contagem = Object.fromEntries(ORDEM.map((k) => [k, lista.filter((p) => p.situacao === k).length])) as Record<Situacao, number>;
+    return { ...r, ordem: i, lista, contagem, pior: lista.length ? pior(lista) : null, total: lista.length, fora: lista.length - contagem.normal };
+  });
+  const regionaisMapa: RegionalMapa[] = regionais.map(({ nome, centro, pior: p, total, fora }) => ({ nome, centro, pior: p, total, fora }));
+  const regionaisTabela = [...regionais].sort(
+    (x, y) => (x.pior ? ORDEM.indexOf(x.pior) : 99) - (y.pior ? ORDEM.indexOf(y.pior) : 99) || y.fora - x.fora || x.ordem - y.ordem,
+  );
+  const semRegional = postos.length - regionalDe.size;
 
   const porUgrhi = new Map<number, Posto[]>();
   for (const p of postos) porUgrhi.set(p.ugrhi, [...(porUgrhi.get(p.ugrhi) ?? []), p]);
@@ -94,7 +122,7 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
       <link rel="stylesheet" href="/acesso/vendor/leaflet/leaflet.css" precedence="default" />
       <Cabecalho
         titulo="Defesa Civil — situação dos rios, córregos e piscinões"
-        subtitulo={`Postos fluviométricos do SIBH com cotas de alerta, por UGRHI. Dados de ${hora(situacao.gerado_em)} (atualiza a cada 3 min).`}
+        subtitulo={`Postos fluviométricos do SIBH com cotas de alerta, por regional da Defesa Civil e por UGRHI. Dados de ${hora(situacao.gerado_em)} (atualiza a cada 3 min).`}
         trilha={[
           ['Painel', '/acesso'],
           ['Defesa Civil', null],
@@ -127,6 +155,73 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
         ))}
       </div>
 
+      <section className="acesso-card mb-4">
+        <h2 className="acesso-card__titulo">
+          <i className="bi bi-shield-shaded" /> Regionais da Defesa Civil
+        </h2>
+        <div className="row g-3">
+          <div className="col-xl-7">
+            <MapaRegionais regionais={regionaisMapa} postos={postosMapa} />
+            <p className="small text-secondary mt-1 mb-0">
+              Triângulos: pontos monitorados, na cor da situação. O número ao lado do nome da regional é a quantidade de pontos fora do normal. Clique
+              em um ponto ou em uma regional para ver os detalhes.
+            </p>
+          </div>
+          <div className="col-xl-5">
+            <div className="table-responsive dc-regionais">
+              <table className="table table-sm align-middle mb-0 dc-tabela">
+                <thead>
+                  <tr>
+                    <th>Regional</th>
+                    <th>Situação</th>
+                    <th className="text-end">Pontos</th>
+                    <th>Fora do normal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {regionaisTabela.map((r) => (
+                    <tr key={r.nome}>
+                      <td className="fw-semibold text-nowrap">{r.nome}</td>
+                      <td>{r.pior ? <span className={`dc-selo dc-selo--${r.pior}`}>{SITUACOES[r.pior]}</span> : <span className="text-secondary">sem ponto</span>}</td>
+                      <td className="text-end">{r.total}</td>
+                      <td>
+                        {r.fora ? (
+                          <span className="d-flex flex-wrap gap-1">
+                            {GRAVES.filter((k) => r.contagem[k]).map((k) => (
+                              <span
+                                key={k}
+                                className={`dc-selo dc-selo--${k}`}
+                                title={r.lista
+                                  .filter((p) => p.situacao === k)
+                                  .map((p) => `${p.prefixo} ${p.nome}`)
+                                  .join('; ')}
+                              >
+                                {r.contagem[k]} {SITUACOES[k].toLocaleLowerCase('pt-BR')}
+                              </span>
+                            ))}
+                          </span>
+                        ) : (
+                          <span className="text-secondary">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="small text-secondary mt-2 mb-0">
+              Divisas de <code>regionais_defesa_civil.geojson</code>. As subdivisões I-2.1/I-2.2 e M-4.1/M-4.2 não têm divisa traçada entre si no arquivo e
+              aparecem juntas.
+              {semRegional > 0 &&
+                ` ${semRegional} ${semRegional === 1 ? 'ponto está sem coordenada no SIBH e não entra' : 'pontos estão sem coordenada no SIBH e não entram'} no mapa.`}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <h2 className="h5 mb-2">
+        <i className="bi bi-water" /> Situação por UGRHI
+      </h2>
       <form className="acesso-card mb-3 row g-2 align-items-end mx-0" method="get">
         <div className="col-md-6">
           <label className="form-label small" htmlFor="ugrhi">
@@ -207,81 +302,95 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
             </div>
 
             <div className="row g-3 mb-3">
-              <div className="col-xl-6">
-                <label className="form-label small fw-semibold" htmlFor={`texto-${u}`}>
-                  <i className="bi bi-file-text" /> Texto formal <span className="fw-normal text-secondary">(e-mail, ofício)</span>
-                </label>
-                <textarea className="form-control dc-texto" id={`texto-${u}`} rows={Math.min(16, 4 + 2 * fora.length)} defaultValue={texto(lista)} />
-                <div className="mt-2">
-                  <button type="button" className="btn btn-sm btn-primary" data-copiar={`texto-${u}`}>
-                    <i className="bi bi-clipboard" /> Copiar texto
-                  </button>
-                  <span className="small text-success ms-2" data-copiado-de={`texto-${u}`} hidden>
-                    Copiado!
-                  </span>
+              {limite && (
+                <div className="col-xl-7">
+                  <div className="dc-mapa-bloco">
+                    <div className="small mb-2">
+                      <strong>
+                        <i className="bi bi-map" /> Mapa da UGRHI
+                      </strong>{' '}
+                      — {mapa.chuva.length} {mapa.chuva.length === 1 ? 'posto' : 'postos'} com chuva acima de {m(LIMITE_CHUVA_MM, 0)} mm nas últimas{' '}
+                      {HORAS_CHUVA[horas]}
+                      {mapa.chuva[0] ? ` (máx. ${m(mapa.chuva[0].v, 1)} mm)` : ''} · {mapa.estacoes.length - nFlu} pluviométricas e {nFlu} fluviométricas
+                      telemétricas
+                    </div>
+                    {mapa.falhas.length > 0 && (
+                      <div className="alert alert-warning py-2 small mb-2">
+                        O SIBH não respondeu agora ({mapa.falhas.join(', ')}); o mapa usa a última cópia disponível.
+                      </div>
+                    )}
+                    <div
+                      className="dc-mapa"
+                      id={`mapa-${u}`}
+                      data-dc-mapa={JSON.stringify(cfgMapa)}
+                      role="img"
+                      aria-label={`Mapa da ${nomeUgrhi(u)} com chuva acumulada e estações telemétricas`}
+                    />
+                    <div className="d-flex flex-wrap gap-2 mt-2">
+                      <button type="button" className="btn btn-sm btn-success" data-dc-enviar={`mapa-${u}`}>
+                        <i className="bi bi-whatsapp" /> Enviar mapa + mensagem
+                      </button>
+                      <button type="button" className="btn btn-sm btn-outline-secondary" data-dc-baixar={`mapa-${u}`}>
+                        <i className="bi bi-download" /> Baixar mapa (imagem)
+                      </button>
+                    </div>
+                    <p className="small text-secondary mt-1 mb-0" data-dc-aviso={`mapa-${u}`} hidden />
+                  </div>
                 </div>
-              </div>
-              <div className="col-xl-6">
-                <label className="form-label small fw-semibold" htmlFor={`zap-${u}`}>
-                  <i className="bi bi-whatsapp dc-zap-icone" /> Mensagem para WhatsApp{' '}
-                  <span className="fw-normal text-secondary">(com ícones; *negrito* aparece em negrito no WhatsApp)</span>
-                </label>
-                <textarea
-                  className="form-control dc-texto dc-zap"
-                  id={`zap-${u}`}
-                  rows={Math.min(26, 14 + 3 * fora.length)}
-                  defaultValue={textoWhatsapp(lista, nomeUgrhi(u), situacao.gerado_em, textoChuvaWhatsapp(mapa.chuva, horas))}
-                />
-                <div className="mt-2">
-                  <button type="button" className="btn btn-sm btn-success" data-copiar={`zap-${u}`}>
-                    <i className="bi bi-clipboard" /> Copiar mensagem
-                  </button>{' '}
-                  <button type="button" className="btn btn-sm btn-outline-success" data-whatsapp={`zap-${u}`}>
-                    <i className="bi bi-whatsapp" /> Abrir no WhatsApp
-                  </button>
-                  <span className="small text-success ms-2" data-copiado-de={`zap-${u}`} hidden>
-                    Copiado!
-                  </span>
+              )}
+              <div className={limite ? 'col-xl-5' : 'col-12'}>
+                <ul className="nav nav-tabs dc-abas" role="tablist">
+                  <li className="nav-item" role="presentation">
+                    <button className="nav-link active" type="button" role="tab" data-bs-toggle="tab" data-bs-target={`#aba-zap-${u}`} aria-controls={`aba-zap-${u}`} aria-selected="true">
+                      <i className="bi bi-whatsapp dc-zap-icone" /> WhatsApp
+                    </button>
+                  </li>
+                  <li className="nav-item" role="presentation">
+                    <button className="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target={`#aba-texto-${u}`} aria-controls={`aba-texto-${u}`} aria-selected="false">
+                      <i className="bi bi-file-text" /> Texto formal
+                    </button>
+                  </li>
+                </ul>
+                <div className="tab-content dc-abas__conteudo">
+                  <div className="tab-pane fade show active" id={`aba-zap-${u}`} role="tabpanel">
+                    <label className="form-label small text-secondary" htmlFor={`zap-${u}`}>
+                      Mensagem com ícones; *negrito* aparece em negrito no WhatsApp.
+                    </label>
+                    <textarea
+                      className="form-control dc-texto dc-zap"
+                      id={`zap-${u}`}
+                      rows={Math.min(22, 14 + 3 * fora.length)}
+                      defaultValue={textoWhatsapp(lista, nomeUgrhi(u), situacao.gerado_em, textoChuvaWhatsapp(mapa.chuva, horas))}
+                    />
+                    <div className="mt-2">
+                      <button type="button" className="btn btn-sm btn-success" data-copiar={`zap-${u}`}>
+                        <i className="bi bi-clipboard" /> Copiar mensagem
+                      </button>{' '}
+                      <button type="button" className="btn btn-sm btn-outline-success" data-whatsapp={`zap-${u}`}>
+                        <i className="bi bi-whatsapp" /> Abrir no WhatsApp
+                      </button>
+                      <span className="small text-success ms-2" data-copiado-de={`zap-${u}`} hidden>
+                        Copiado!
+                      </span>
+                    </div>
+                  </div>
+                  <div className="tab-pane fade" id={`aba-texto-${u}`} role="tabpanel">
+                    <label className="form-label small text-secondary" htmlFor={`texto-${u}`}>
+                      Texto corrido, para e-mail ou ofício.
+                    </label>
+                    <textarea className="form-control dc-texto" id={`texto-${u}`} rows={Math.min(22, 6 + 2 * fora.length)} defaultValue={texto(lista)} />
+                    <div className="mt-2">
+                      <button type="button" className="btn btn-sm btn-primary" data-copiar={`texto-${u}`}>
+                        <i className="bi bi-clipboard" /> Copiar texto
+                      </button>
+                      <span className="small text-success ms-2" data-copiado-de={`texto-${u}`} hidden>
+                        Copiado!
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-
-            {limite && (
-              <div className="dc-mapa-bloco mb-3">
-                <div className="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
-                  <div className="small">
-                    <strong>
-                      <i className="bi bi-map" /> Mapa da UGRHI
-                    </strong>{' '}
-                    — {mapa.chuva.length} {mapa.chuva.length === 1 ? 'posto' : 'postos'} com chuva acima de {m(LIMITE_CHUVA_MM, 0)} mm nas
-                    últimas {HORAS_CHUVA[horas]}
-                    {mapa.chuva[0] ? ` (máx. ${m(mapa.chuva[0].v, 1)} mm)` : ''} · {mapa.estacoes.length - nFlu} pluviométricas e {nFlu}{' '}
-                    fluviométricas telemétricas
-                  </div>
-                  <div className="d-flex flex-wrap gap-2">
-                    <button type="button" className="btn btn-sm btn-success" data-dc-enviar={`mapa-${u}`}>
-                      <i className="bi bi-whatsapp" /> Enviar mapa + mensagem
-                    </button>
-                    <button type="button" className="btn btn-sm btn-outline-secondary" data-dc-baixar={`mapa-${u}`}>
-                      <i className="bi bi-download" /> Baixar mapa (imagem)
-                    </button>
-                  </div>
-                </div>
-                {mapa.falhas.length > 0 && (
-                  <div className="alert alert-warning py-2 small mb-2">
-                    O SIBH não respondeu agora ({mapa.falhas.join(', ')}); o mapa usa a última cópia disponível.
-                  </div>
-                )}
-                <div
-                  className="dc-mapa"
-                  id={`mapa-${u}`}
-                  data-dc-mapa={JSON.stringify(cfgMapa)}
-                  role="img"
-                  aria-label={`Mapa da ${nomeUgrhi(u)} com chuva acumulada e estações telemétricas`}
-                />
-                <p className="small text-secondary mt-1 mb-0" data-dc-aviso={`mapa-${u}`} hidden />
-              </div>
-            )}
 
             {tabelas.map(([titulo, linhas, aberta]) => (
               <details key={titulo} className="dc-detalhes" open={aberta}>
@@ -293,6 +402,7 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
                         <th>Situação</th>
                         <th>Posto</th>
                         <th>Município</th>
+                        <th>Regional</th>
                         <th className="text-end">Nível (m)</th>
                         <th>Hora</th>
                         <th>Tendência (1 h)</th>
@@ -314,6 +424,7 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
                             {p.piscinao && <span className="badge text-bg-light border ms-1">piscinão</span>}
                           </td>
                           <td>{p.cidade}</td>
+                          <td className="text-nowrap">{nomeRegional(p)}</td>
                           <td className="text-end fw-semibold">{m(p.nivel, 3)}</td>
                           <td>
                             {p.hora ? (

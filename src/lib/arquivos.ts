@@ -2,7 +2,8 @@ import 'server-only';
 import type pg from 'pg';
 import { UPLOAD } from './config';
 import { pool, queryOne } from './db';
-import { abrir, gravar, remover } from './storage';
+import { createHash } from 'node:crypto';
+import { abrir, existe, gravar, gravarComNome, regravar, remover } from './storage';
 
 export { remover as removerDoDisco };
 
@@ -73,7 +74,8 @@ export async function lerArquivoEnviado(
   opcoes: { obrigatorio: boolean; rotulo?: string },
 ): Promise<Enviado | null> {
   if (!(v instanceof File) || v.size === 0) {
-    if (v instanceof File && v.name && v.size === 0) throw new ErroUpload('O arquivo está vazio.');
+    // campo sem nada escolhido chega como um File vazio sem nome de arquivo de verdade ("", "undefined", "blob")
+    if (v instanceof File && /\.[a-z0-9]{1,8}$/i.test(v.name) && v.size === 0) throw new ErroUpload('O arquivo está vazio.');
     if (opcoes.obrigatorio) throw new ErroUpload(`Selecione ${opcoes.rotulo ?? 'o arquivo'}.`);
     return null;
   }
@@ -103,16 +105,33 @@ export function lerPdfEnviado(v: FormDataEntryValue | null, obrigatorio: boolean
  */
 export async function registrarArquivo(
   a: { nome: string; conteudo: Uint8Array; mime: string; ext: string },
-  destino: { salaId: number | null; pasta: string; usuarioId: number },
+  destino: {
+    salaId: number | null;
+    pasta: string;
+    usuarioId: number;
+    /** PDF de boletim: nome legível (<nomeBase>.pdf, na pasta do tipo) e cópia do conteúdo no banco. */
+    nomeBase?: string;
+  },
   c?: pg.PoolClient,
 ): Promise<{ id: number; caminho: string }> {
-  const g = await gravar(a.conteudo, destino.pasta, a.ext);
+  let g;
+  if (destino.nomeBase) {
+    // o nome é único no banco: pula também os já registrados cujo arquivo não está mais na pasta
+    const usados = await pool().query<{ nome_interno: string }>('SELECT nome_interno FROM arquivos WHERE nome_interno LIKE $1', [`${destino.nomeBase}%`]);
+    g = await gravarComNome(a.conteudo, destino.pasta, destino.nomeBase, a.ext, new Set(usados.rows.map((r) => r.nome_interno)));
+  } else {
+    g = await gravar(a.conteudo, destino.pasta, a.ext);
+  }
   try {
-    const r = await (c ?? pool()).query<{ id: string }>(
+    const executor = c ?? pool();
+    const r = await executor.query<{ id: string }>(
       `INSERT INTO arquivos (sala_id, origem, nome_original, nome_interno, caminho, mime, tamanho, sha256, enviado_por)
        VALUES ($1, 'upload', $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [destino.salaId, a.nome, g.nomeInterno, g.caminho, a.mime, g.tamanho, g.sha256, destino.usuarioId],
     );
+    if (destino.nomeBase) {
+      await executor.query('INSERT INTO arquivos_conteudo (arquivo_id, dados) VALUES ($1, $2)', [r.rows[0]!.id, Buffer.from(a.conteudo)]);
+    }
     return { id: Number(r.rows[0]!.id), caminho: g.caminho };
   } catch (e) {
     await remover(g.caminho).catch(() => {});
@@ -129,6 +148,20 @@ export async function obterArquivo(id: number | string | null): Promise<Arquivo 
   );
 }
 
+/** Onde o arquivo está guardado: na pasta (disco) e/ou com cópia no banco. */
+export async function situacaoArquivo(a: Arquivo): Promise<{ naPasta: boolean; noBanco: boolean }> {
+  const [naPasta, copia] = await Promise.all([existe(a.caminho), queryOne('SELECT 1 FROM arquivos_conteudo WHERE arquivo_id = $1', [a.id])]);
+  return { naPasta, noBanco: !!copia };
+}
+
+/** Regrava na pasta um arquivo que sumiu, se houver cópia no banco e ela conferir com o SHA-256 registrado. */
+export async function restaurarDoBanco(a: Arquivo): Promise<boolean> {
+  const r = await queryOne<{ dados: Buffer }>('SELECT dados FROM arquivos_conteudo WHERE arquivo_id = $1', [a.id]);
+  if (!r || createHash('sha256').update(r.dados).digest('hex') !== a.sha256) return false;
+  await regravar(a.caminho, r.dados);
+  return true;
+}
+
 const MIME_INLINE = new Set(['application/pdf', 'image/png', 'image/jpeg']);
 
 /**
@@ -139,7 +172,9 @@ export async function respostaArquivo(
   a: Arquivo,
   opcoes: { inline?: boolean; publico?: boolean } = {},
 ): Promise<Response> {
-  const aberto = await abrir(a.caminho);
+  let aberto = await abrir(a.caminho);
+  // sumiu da pasta: regrava a partir da cópia do banco (PDFs de boletim) e segue
+  if (!aberto && (await restaurarDoBanco(a))) aberto = await abrir(a.caminho);
   if (!aberto) return new Response('Arquivo não encontrado.', { status: 404 });
   const inline = (opcoes.inline ?? true) && MIME_INLINE.has(a.mime);
   const ascii = a.nome_original.normalize('NFD').replace(/[^\x20-\x7e]/g, '').replace(/[^A-Za-z0-9._-]/g, '_') || 'arquivo';

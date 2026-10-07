@@ -345,6 +345,12 @@ async function estacoesMapa(tipo: 1 | 2): Promise<Record<string, EstacaoMapa> | 
   return saida;
 }
 
+/** Coordenadas dos postos fluviométricos do cadastro do SIBH (id do posto → lat/lng). */
+export async function coordenadasPostos(): Promise<Record<string, { lat: number; lng: number }>> {
+  const l = await lembrar(SERVICO, 'mapa_estacoes_flu', 86_400, () => estacoesMapa(1), { validadeMaxSeg: 30 * 86_400 });
+  return l?.valor ?? {};
+}
+
 /** Chuva acumulada (mm) nas últimas `horas` de todos os pluviômetros: posto → mm. */
 async function chuvaAcumulada(horas: number): Promise<Record<string, number> | null> {
   const r = (await buscarSibh(`measurements/now?station_type_id=2&hours=${horas}`)) as { measurements?: Linha[] };

@@ -19,6 +19,11 @@ export function dataBr(iso: string): string {
   return `${d}/${m}/${a}`;
 }
 
+/** Título dos boletins de tipo com título fixo: "<fixo> — DD/MM/AAAA" (data de referência). */
+export function tituloFixo(fixo: string, dataReferencia: string): string {
+  return /^d{4}-d{2}-d{2}$/.test(dataReferencia) ? `${fixo} — ${dataBr(dataReferencia)}` : fixo;
+}
+
 /** 1536 → "2 KB"; 3 MB → "3.0 MB". */
 export function tamanho(bytes: string | number | null | undefined): string {
   const n = Number(bytes ?? 0);

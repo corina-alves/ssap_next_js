@@ -313,3 +313,20 @@ export async function arquivoPublicoId(documentoId: number): Promise<string | nu
   const r = await queryOne<{ arquivo_id: string }>('SELECT arquivo_id::text FROM vw_documentos_publicos WHERE id = $1', [documentoId]);
   return r?.arquivo_id ?? null;
 }
+
+/** Títulos dos documentos das salas (os mais recentes primeiro), para o autocompletar da busca. */
+export async function sugestoesTitulos(salas: number[]): Promise<string[]> {
+  if (!salas.length) return [];
+  const r = await query<{ titulo: string }>(
+    `SELECT titulo FROM documentos WHERE excluido_em IS NULL AND sala_id = ANY($1::int[])
+      GROUP BY titulo ORDER BY max(id) DESC LIMIT 300`,
+    [salas],
+  );
+  return r.map((x) => x.titulo);
+}
+
+/** Títulos dos documentos publicados, para o autocompletar da busca do site. */
+export async function sugestoesPublicas(): Promise<string[]> {
+  const r = await query<{ titulo: string }>('SELECT titulo FROM vw_documentos_publicos GROUP BY titulo ORDER BY max(id) DESC LIMIT 300');
+  return r.map((x) => x.titulo);
+}

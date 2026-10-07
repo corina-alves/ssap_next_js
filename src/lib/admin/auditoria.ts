@@ -78,3 +78,14 @@ export async function opcoesFiltro(): Promise<{ modulos: string[]; acoes: string
   ]);
   return { modulos: modulos.map((r) => r.v), acoes: acoes.map((r) => r.v) };
 }
+
+/** Nomes de usuário que aparecem na auditoria (dentro do escopo), para o autocompletar da busca. */
+export async function sugestoesUsuarios(escopo: number[] | null): Promise<string[]> {
+  const r = await query<{ nome: string }>(
+    `SELECT DISTINCT usuario_nome AS nome FROM auditoria
+      WHERE usuario_nome IS NOT NULL AND ($1::int[] IS NULL OR sala_id = ANY($1::int[]))
+      ORDER BY 1 LIMIT 300`,
+    [escopo],
+  );
+  return r.map((x) => x.nome);
+}

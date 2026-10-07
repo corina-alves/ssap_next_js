@@ -11,16 +11,16 @@ const CSP =
   "font-src 'self' data: https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self' https://api.open-meteo.com; " +
   "frame-src https://apps.spaguas.sp.gov.br; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
-// Endereços que o JavaScript dos sumários chama na mesma pasta (nomes do PHP).
-const CAPTURAS: Record<string, ChaveSumario> = { 'capturar_diagrama.php': 'tiete_pinheiros', 'capturar_diagrama_ribeira.php': 'ribeira_iguape' };
+// Endereços que o JavaScript dos sumários chama na mesma pasta.
+const CAPTURAS: Record<string, ChaveSumario> = { 'capturar-diagrama': 'tiete_pinheiros', 'capturar-diagrama-ribeira': 'ribeira_iguape' };
 
 const json = (error: string, status: number) => Response.json({ error }, { status });
 
 /**
- * Sumários Executivos de Cheias — mesmos endereços do PHP:
+ * Sumários Executivos de Cheias:
  *   sumario_executivo_<chave>.html   o sumário (login + criar_boletim numa das salas dele)
- *   api_proxy.php                    proxy da API do SIBH
- *   capturar_diagrama[_ribeira].php  captura do diagrama para o PDF (?img=1 devolve a imagem)
+ *   api-sibh                         proxy da API do SIBH
+ *   capturar-diagrama[-ribeira]      captura do diagrama para o PDF (?img=1 devolve a imagem)
  */
 export async function GET(req: Request, { params }: { params: Promise<{ arquivo: string }> }) {
   const { arquivo } = await params;
@@ -41,7 +41,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ arquivo:
   }
 
   const captura = CAPTURAS[arquivo];
-  if (arquivo !== 'api_proxy.php' && !captura) notFound();
+  if (arquivo !== 'api-sibh' && !captura) notFound();
 
   // Proxy e captura: recusa em JSON (o JavaScript do sumário mostra a mensagem).
   const u = await usuarioAtual();

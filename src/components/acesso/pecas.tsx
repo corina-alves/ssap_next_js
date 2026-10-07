@@ -84,3 +84,68 @@ export function MolduraAuth({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/** Paginação preservando os filtros da URL (partials/paginacao.php). */
+export function PaginacaoAcesso({ total, pagina, porPagina, base, params }: { total: number; pagina: number; porPagina: number; base: string; params: Record<string, string | undefined> }) {
+  const paginas = Math.max(1, Math.ceil(total / Math.max(1, porPagina)));
+  if (paginas <= 1) return null;
+  const href = (n: number) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
+    q.set('p', String(n));
+    return `${base}?${q}`;
+  };
+  const numeros = [];
+  for (let i = Math.max(1, pagina - 2); i <= Math.min(paginas, pagina + 2); i++) numeros.push(i);
+  return (
+    <nav aria-label="Paginação" className="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+      <small className="text-secondary">
+        {total} registro(s) · página {pagina} de {paginas}
+      </small>
+      <ul className="pagination pagination-sm mb-0">
+        <li className={`page-item${pagina <= 1 ? ' disabled' : ''}`}>
+          <Link className="page-link" href={href(Math.max(1, pagina - 1))} aria-label="Anterior">
+            ‹
+          </Link>
+        </li>
+        {numeros.map((n) => (
+          <li key={n} className={`page-item${n === pagina ? ' active' : ''}`}>
+            <Link className="page-link" href={href(n)}>
+              {n}
+            </Link>
+          </li>
+        ))}
+        <li className={`page-item${pagina >= paginas ? ' disabled' : ''}`}>
+          <Link className="page-link" href={href(Math.min(paginas, pagina + 1))} aria-label="Próxima">
+            ›
+          </Link>
+        </li>
+      </ul>
+    </nav>
+  );
+}
+
+/** Atalhos da sala para as páginas que produzem boletim (partials/ferramentas_boletim.php). */
+export function FerramentasBoletim({ atalhos }: { atalhos: { titulo: string; descricao: string; href: string; icone: string }[] }) {
+  if (!atalhos.length) return null;
+  return (
+    <section className="acesso-card mb-3">
+      <h2 className="acesso-card__titulo">
+        <i className="bi bi-tools" /> Produzir boletim
+      </h2>
+      <div className="row g-2">
+        {atalhos.map((t) => (
+          <div key={t.href} className="col-lg-6">
+            <a className="acesso-link-card" href={t.href}>
+              <i className={`bi ${t.icone}`} />
+              <span>
+                <strong>{t.titulo}</strong>
+                <small>{t.descricao}</small>
+              </span>
+            </a>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

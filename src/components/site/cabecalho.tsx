@@ -59,7 +59,7 @@ const GRUPOS: Grupo[] = [
       { href: '/protocolo_escassez', rotulo: 'Protocolo de Escassez', icone: 'bi-exclamation-triangle' },
       { href: '/documentos/deliberacoes', rotulo: 'Deliberações', icone: 'bi-file-earmark-check' },
       { href: '/documentos/atos-administrativos', rotulo: 'Atos Administrativos', icone: 'bi-file-earmark-text' },
-      { href: '/documentos/outros-documentos', rotulo: 'Outros Documentos', icone: 'bi-folder2-open' },
+      // { href: '/documentos/outros-documentos', rotulo: 'Outros Documentos', icone: 'bi-folder2-open' },
       'divisor',
       { href: '/nota_informativa', rotulo: 'Nota Informativa', icone: 'bi-info-circle' },
     ],
@@ -70,7 +70,7 @@ const GRUPOS: Grupo[] = [
     cabecalho: 'Outorgas',
     ativos: ['/situacao-outorgas', '/vazoes-outorgadas', '/atos-administrativos-outorga'],
     itens: [
-      { href: '/situacao-outorgas', rotulo: 'Outorgas', icone: 'bi-droplet' },
+      // { href: '/situacao-outorgas', rotulo: 'Outorgas', icone: 'bi-droplet' },
       { href: '/vazoes-outorgadas', rotulo: 'Vazões Outorgadas', icone: 'bi-graph-up-arrow' },
       { href: '/atos-administrativos-outorga', rotulo: 'Atos Administrativos de Outorga', icone: 'bi-file-earmark-text' },
     ],

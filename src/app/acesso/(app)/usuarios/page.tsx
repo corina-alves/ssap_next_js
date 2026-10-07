@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { inteiro, Paginacao, texto } from '@/components/paginacao';
-import { listar, ROTULO_STATUS, salas as listarSalas, STATUS } from '@/lib/admin/usuarios';
+import { listar, ROTULO_STATUS, salas as listarSalas, STATUS, sugestoesBusca } from '@/lib/admin/usuarios';
 import { exigirPermissao } from '@/lib/auth/acl';
 import { dataHora } from '@/lib/formato';
+import { BuscaAutocompletar } from '@/components/busca-autocompletar';
 
 export const metadata: Metadata = { title: 'Usuários' };
 
@@ -39,7 +40,7 @@ export default async function PaginaUsuarios({
 
       <section className="cartao">
         <form className="filtros" method="get">
-          <input type="search" name="busca" defaultValue={filtros.busca} placeholder="Buscar por nome, e-mail ou login" aria-label="Buscar" />
+          <BuscaAutocompletar sugestoes={await sugestoesBusca()} name="busca" defaultValue={filtros.busca} placeholder="Buscar por nome, e-mail ou login" rotulo="Buscar" />
           <select name="sala" defaultValue={filtros.sala || ''} aria-label="Sala">
             <option value="">Todas as salas</option>
             {salas.map((s) => (

@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react';
 
-/** Botão "voltar ao topo" (mesmo comportamento do sssp-core.js do PHP). */
-export function BotaoTopo() {
+/**
+ * Botão "voltar ao topo" (mesmo comportamento do sssp-core.js do PHP): aparece
+ * depois de rolar a página. `classe`: o estilo do site ou o da área restrita.
+ */
+export function BotaoTopo({ classe = 'sssp-topo' }: { classe?: string }) {
   const [visivel, setVisivel] = useState(false);
   useEffect(() => {
     const aoRolar = () => setVisivel(window.scrollY > 400);
@@ -14,7 +17,7 @@ export function BotaoTopo() {
   return (
     <button
       type="button"
-      className={`sssp-topo${visivel ? ' is-visible' : ''}`}
+      className={`${classe}${visivel ? ' is-visible' : ''}`}
       aria-label="Voltar ao topo"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
     >

@@ -1,15 +1,20 @@
 import type { Metadata } from 'next';
-import '@/styles/legado/antigo-estilo.css';
-import '@/styles/legado/antigo-protocolo_escassez.css';
-import { ConteudoLegado } from '@/components/site/conteudo-legado';
-import html from '@/conteudo/legado/nota_informativa_conjunta2';
+import { NotaConjunta } from '@/components/site/nota-conjunta';
+import html from '@/conteudo/nota-conjunta-projecoes';
 
 export const metadata: Metadata = {
   title: 'Nota Informativa — Metodologia de Projeções',
   description: 'Metodologia de projeções hidrológicas do Comitê de Integração.',
 };
 
-// Texto fixo, igual ao de nota_informativa_conjunta2.php (veja scripts/capturar-legado.mjs).
 export default function Pagina() {
-  return <ConteudoLegado html={html} antigo />;
+  return (
+    <NotaConjunta
+      titulo="Nota Informativa Conjunta"
+      assunto="Metodologia de projeções hidrológicas e de ações de gestão da demanda."
+      edicao="Edição de 23 de setembro de 2025"
+      pdf="/legado/nota_tecnica_spaguas_arsesp/NotaInformativaConjuntaProjecoessComitedeIntegracao.pdf"
+      html={html}
+    />
+  );
 }

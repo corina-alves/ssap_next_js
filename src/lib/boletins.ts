@@ -4,6 +4,7 @@ import { salasComModulo, type Acl, type SalaModulo } from './auth/acl';
 import { auditar } from './auditoria';
 import { ErroUpload, lerPdfEnviado, registrarArquivo, removerDoDisco } from './arquivos';
 import { query, queryOne, transacao } from './db';
+import { tituloFixo } from './formato';
 import type { Origem } from './requisicao';
 
 /**
@@ -30,7 +31,8 @@ export const ROTULO_STATUS: Record<Status, string> = {
   publicado: 'Publicado',
   arquivado: 'Arquivado',
 };
-const EDITAVEIS: Status[] = ['rascunho', 'em_revisao'];
+/** Situações em que o boletim ainda pode ser editado por quem tem editar_boletim. */
+export const EDITAVEIS: Status[] = ['rascunho', 'em_revisao'];
 
 export const TRANSICOES = {
   enviar_revisao: { de: ['rascunho'], para: 'em_revisao', permissao: 'editar_boletim', rotulo: 'Enviar para revisão' },
@@ -57,12 +59,20 @@ export function salasComPermissao(a: Acl, permissao: string): Promise<SalaBoleti
   return salasComModulo(a, 'boletins', permissao);
 }
 
-export type TipoDisponivel = { id: number; sala_id: number; nome: string; periodicidade: string; exige_revisao: boolean };
+export type TipoDisponivel = {
+  id: number;
+  sala_id: number;
+  nome: string;
+  periodicidade: string;
+  exige_revisao: boolean;
+  /** Preenchido: o título do boletim não é digitado, é "<titulo_fixo> — <data de referência>". */
+  titulo_fixo: string | null;
+};
 
 export async function tiposAtivos(salaIds: number[]): Promise<TipoDisponivel[]> {
   if (!salaIds.length) return [];
   return query<TipoDisponivel>(
-    `SELECT id, sala_id, nome, periodicidade, exige_revisao FROM tipos_boletim
+    `SELECT id, sala_id, nome, periodicidade, exige_revisao, titulo_fixo FROM tipos_boletim
       WHERE ativo AND sala_id = ANY($1::int[]) ORDER BY ordem, nome`,
     [salaIds],
   );
@@ -72,7 +82,7 @@ export async function tiposAtivos(salaIds: number[]): Promise<TipoDisponivel[]> 
 // Consulta
 // ---------------------------------------------------------------------------
 
-export type FiltrosBoletins = { salaId?: number; tipoId?: number; status?: string; busca?: string; de?: string; ate?: string };
+export type FiltrosBoletins = { salaId?: number; tipoId?: number; status?: string; busca?: string; de?: string; ate?: string; criadoPor?: number };
 
 export type ItemBoletim = {
   id: string;
@@ -86,7 +96,11 @@ export type ItemBoletim = {
   criado_em: Date;
   tipo_nome: string;
   sala: string;
+  sala_id: number;
   atualizado_por_nome: string | null;
+  criado_por: number | null;
+  criado_por_nome: string | null;
+  criado_por_email: string | null;
 };
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
@@ -107,6 +121,7 @@ export async function listar(
   };
   if (f.salaId) add((n) => `b.sala_id = ${n}`, f.salaId);
   if (f.tipoId) add((n) => `b.tipo_id = ${n}`, f.tipoId);
+  if (f.criadoPor) add((n) => `b.criado_por = ${n}`, f.criadoPor);
   if (f.status && (STATUS as readonly string[]).includes(f.status)) add((n) => `b.status = ${n}`, f.status);
   if (f.busca) add((n) => `b.titulo ILIKE ${n}`, `%${f.busca.replace(/[\\%_]/g, (m) => `\\${m}`)}%`);
   if (f.de && DATA.test(f.de)) add((n) => `b.data_referencia >= ${n}::date`, f.de);
@@ -117,17 +132,29 @@ export async function listar(
   const itens = await query<ItemBoletim>(
     `SELECT b.id::text, b.titulo, b.status, to_char(b.data_referencia, 'YYYY-MM-DD') AS data_referencia, b.competencia,
             b.versao_atual, b.pdf_arquivo_id IS NOT NULL AS tem_pdf, b.atualizado_em, b.criado_em,
-            t.nome AS tipo_nome, coalesce(s.sigla, s.nome) AS sala, ua.nome AS atualizado_por_nome
+            t.nome AS tipo_nome, coalesce(s.sigla, s.nome) AS sala, b.sala_id, ua.nome AS atualizado_por_nome,
+            b.criado_por, uc.nome AS criado_por_nome, uc.email AS criado_por_email
        FROM boletins b
        JOIN tipos_boletim t ON t.id = b.tipo_id
        JOIN salas s ON s.id = b.sala_id
        LEFT JOIN usuarios ua ON ua.id = coalesce(b.atualizado_por, b.criado_por)
+       LEFT JOIN usuarios uc ON uc.id = b.criado_por
       WHERE ${where}
       ORDER BY b.data_referencia DESC, b.id DESC
       LIMIT $${p.length + 1} OFFSET $${p.length + 2}`,
     [...p, porPagina, Math.max(0, (pagina - 1) * porPagina)],
   );
   return { itens, total };
+}
+
+/** Quem já inseriu boletim nas salas informadas (filtro "Inserido por"). */
+export async function autores(salas: number[]): Promise<{ id: number; nome: string }[]> {
+  if (!salas.length) return [];
+  return query<{ id: number; nome: string }>(
+    `SELECT DISTINCT u.id, u.nome FROM boletins b JOIN usuarios u ON u.id = b.criado_por
+      WHERE b.excluido_em IS NULL AND b.sala_id = ANY($1::int[]) ORDER BY u.nome`,
+    [salas],
+  );
 }
 
 export type Boletim = {
@@ -147,6 +174,10 @@ export type Boletim = {
   periodicidade: string;
   exige_revisao: boolean;
   tipo_publico: boolean;
+  /** Título fixo do tipo (o título do boletim é ele + a data de referência), ou null se o título é livre. */
+  tipo_titulo_fixo: string | null;
+  /** Pasta dos PDFs deste tipo de boletim (dentro de boletins/). */
+  tipo_pasta: string;
   sala_slug: string;
   sala_nome: string;
   criado_por_nome: string | null;
@@ -154,16 +185,19 @@ export type Boletim = {
   publicado_por_nome: string | null;
   pdf_nome: string | null;
   pdf_tamanho: string | null;
+  /** Quando o PDF atual foi enviado. */
+  pdf_em: Date | null;
 };
 
 export async function obter(id: number): Promise<Boletim | null> {
   return queryOne<Boletim>(
     `SELECT b.id::text, b.sala_id, b.tipo_id, b.titulo, to_char(b.data_referencia, 'YYYY-MM-DD') AS data_referencia,
             b.competencia, b.status, b.versao_atual, b.pdf_arquivo_id::text, b.criado_em, b.atualizado_em, b.publicado_em,
-            t.nome AS tipo_nome, t.periodicidade, t.exige_revisao, t.publico AS tipo_publico,
+            t.nome AS tipo_nome, t.periodicidade, t.exige_revisao, t.publico AS tipo_publico, t.titulo_fixo AS tipo_titulo_fixo,
+            coalesce(t.pasta, 'boletim_' || replace(t.slug, '-', '_')) AS tipo_pasta,
             s.slug AS sala_slug, s.nome AS sala_nome,
             uc.nome AS criado_por_nome, ua.nome AS atualizado_por_nome, up.nome AS publicado_por_nome,
-            a.nome_original AS pdf_nome, a.tamanho::text AS pdf_tamanho
+            a.nome_original AS pdf_nome, a.tamanho::text AS pdf_tamanho, a.criado_em AS pdf_em
        FROM boletins b
        JOIN tipos_boletim t ON t.id = b.tipo_id
        JOIN salas s ON s.id = b.sala_id
@@ -230,11 +264,12 @@ function bloqueio(acao: Acao, b: Boletim): string | null {
 }
 
 /** "Administrar boletins": edita e exclui qualquer boletim da sala, inclusive aprovado ou publicado. */
-const administra = (b: Boletim, a: Acl) => a.pode('administrar_boletins', b.sala_id);
+type SalaStatus = Pick<Boletim, 'sala_id' | 'status'>;
+const administra = (b: SalaStatus, a: Acl) => a.pode('administrar_boletins', b.sala_id);
 
-export const podeEditar = (b: Boletim, a: Acl) =>
+export const podeEditar = (b: SalaStatus, a: Acl) =>
   administra(b, a) || (EDITAVEIS.includes(b.status) && a.pode('editar_boletim', b.sala_id));
-export const podeExcluir = (b: Boletim, a: Acl) =>
+export const podeExcluir = (b: SalaStatus, a: Acl) =>
   administra(b, a) || (b.status !== 'publicado' && a.pode('excluir_boletim', b.sala_id));
 
 // ---------------------------------------------------------------------------
@@ -259,6 +294,14 @@ function validarMetadados(d: DadosBoletim, periodicidade: string): { erros: stri
   return { erros, competencia: competencia || null };
 }
 
+/**
+ * Onde o PDF de um boletim é guardado: uma pasta por tipo de boletim, com o
+ * nome <pasta>_<AAAAMMDD>.pdf (data de referência) — e cópia no banco.
+ */
+function destinoPdf(pastaTipo: string, dataReferencia: string): { pasta: string; nomeBase: string } {
+  return { pasta: `boletins/${pastaTipo}`, nomeBase: `${pastaTipo}_${dataReferencia.replace(/-/g, '')}` };
+}
+
 /** Cria um boletim em rascunho, com o PDF (obrigatório). */
 export async function criar(
   a: Acl,
@@ -267,8 +310,8 @@ export async function criar(
   autor: Autor,
   origem: Origem,
 ): Promise<Resultado<{ id: number }>> {
-  const tipo = await queryOne<{ id: number; sala_id: number; periodicidade: string; sala_slug: string }>(
-    `SELECT t.id, t.sala_id, t.periodicidade, s.slug AS sala_slug
+  const tipo = await queryOne<{ id: number; sala_id: number; periodicidade: string; pasta: string; titulo_fixo: string | null }>(
+    `SELECT t.id, t.sala_id, t.periodicidade, t.titulo_fixo, coalesce(t.pasta, 'boletim_' || replace(t.slug, '-', '_')) AS pasta
        FROM tipos_boletim t JOIN salas s ON s.id = t.sala_id
       WHERE t.id = $1 AND t.ativo AND s.status = 'ativa' AND s.excluido_em IS NULL`,
     [d.tipoId],
@@ -277,6 +320,7 @@ export async function criar(
   const permitidas = (await salasComPermissao(a, 'criar_boletim')).map((s) => s.id);
   if (!tipo || !permitidas.includes(tipo.sala_id)) return { ok: false, erros: ['Selecione um tipo de boletim válido.'] };
 
+  if (tipo.titulo_fixo) d = { ...d, titulo: tituloFixo(tipo.titulo_fixo, d.dataReferencia) };
   const { erros, competencia } = validarMetadados(d, tipo.periodicidade);
   let arquivo: Awaited<ReturnType<typeof lerPdfEnviado>> = null;
   try {
@@ -291,7 +335,7 @@ export async function criar(
   const id = await comLimpeza(gravados, () => transacao(async (c) => {
     const pdf = await registrarArquivo(
       arquivo,
-      { salaId: tipo.sala_id, pasta: `boletins/${tipo.sala_slug}`, usuarioId: autor.id },
+      { salaId: tipo.sala_id, ...destinoPdf(tipo.pasta, d.dataReferencia), usuarioId: autor.id },
       c,
     );
     gravados.push(pdf.caminho);
@@ -334,6 +378,7 @@ export async function atualizar(
     if (!EDITAVEIS.includes(b.status)) return { ok: false, erros: [msgNaoEditavel(b.status)] };
   }
 
+  if (b.tipo_titulo_fixo) d = { ...d, titulo: tituloFixo(b.tipo_titulo_fixo, d.dataReferencia) };
   const { erros, competencia } = validarMetadados({ ...d, tipoId: b.tipo_id }, b.periodicidade);
   let arquivo: Awaited<ReturnType<typeof lerPdfEnviado>> = null;
   try {
@@ -355,7 +400,7 @@ export async function atualizar(
     if (arquivo) {
       const pdf = await registrarArquivo(
         arquivo,
-        { salaId: b.sala_id, pasta: `boletins/${b.sala_slug}`, usuarioId: autor.id },
+        { salaId: b.sala_id, ...destinoPdf(b.tipo_pasta, d.dataReferencia), usuarioId: autor.id },
         c,
       );
       gravados.push(pdf.caminho);
@@ -468,6 +513,25 @@ export async function transicionar(
   });
 }
 
+/** "Salvar uma versão agora": fotografia do boletim em rascunho ou revisão, com um comentário. Devolve o número da versão. */
+export async function salvarVersao(a: Acl, id: number, comentario: string, autor: Autor, origem: Origem): Promise<Resultado<{ versao: number }>> {
+  const b = await obter(id);
+  if (!b) return { ok: false, erros: ['Boletim não encontrado.'] };
+  if (!a.pode('editar_boletim', b.sala_id)) return { ok: false, erros: ['Sem permissão para editar boletins desta sala.'] };
+  if (!EDITAVEIS.includes(b.status)) return { ok: false, erros: [msgNaoEditavel(b.status)] };
+  const texto = [...comentario.trim()].slice(0, 500).join('');
+  const versao = await transacao(async (c) => {
+    const v = await versionar(c, id, autor.id, texto || 'Versão salva manualmente');
+    await auditar(
+      { modulo: 'boletins', acao: 'salvar_versao', entidade: 'boletins', entidadeId: id, salaId: b.sala_id,
+        descricao: `Versão v${v} salva: ${b.titulo}`, depois: { versao: v, comentario: texto || null }, usuario: autor, ...origem },
+      c,
+    );
+    return v;
+  });
+  return { ok: true, versao };
+}
+
 // ---------------------------------------------------------------------------
 // Internos
 // ---------------------------------------------------------------------------
@@ -515,4 +579,15 @@ async function versionar(c: pg.PoolClient, id: number, autorId: number, comentar
   );
   await c.query('UPDATE boletins SET versao_atual = $2 WHERE id = $1', [id, versao]);
   return versao;
+}
+
+/** Títulos dos boletins das salas (os mais recentes primeiro), para o autocompletar da busca. */
+export async function sugestoesTitulos(salas: number[]): Promise<string[]> {
+  if (!salas.length) return [];
+  const r = await query<{ titulo: string }>(
+    `SELECT titulo FROM boletins WHERE excluido_em IS NULL AND sala_id = ANY($1::int[])
+      GROUP BY titulo ORDER BY max(data_referencia) DESC LIMIT 300`,
+    [salas],
+  );
+  return r.map((x) => x.titulo);
 }
