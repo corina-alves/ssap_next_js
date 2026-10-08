@@ -46,7 +46,9 @@ function recortar(html, tipo, pagina) {
     if (fim < 0) fim = html.indexOf('<footer');
   }
   if (ini < 20 || fim <= ini) throw new Error(`${pagina}: não achei o início/fim do conteúdo`);
-  return html.slice(ini, fim);
+  // Modais do Bootstrap ficam depois do </main> no PHP; sem eles os botões que os abrem dão erro.
+  const modais = tipo === 'novo' ? html.slice(fim).match(/<div class="modal fade"[\s\S]*?\n<\/div>/g) ?? [] : [];
+  return [html.slice(ini, fim), ...modais].join('\n\n');
 }
 
 function limpar(html) {

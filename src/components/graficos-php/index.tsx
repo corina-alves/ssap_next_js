@@ -591,6 +591,7 @@ export function GraficoSistemas({ tipo, linhas, anosReferencia }: { tipo: 'chuva
               borderColor: '#0b4f8a',
               backgroundColor: '#0b4f8a',
               borderWidth: 4,
+              borderDash: [3, 6],
               pointRadius: 5,
               tension: 0.3,
               yAxisID: 'y1',
@@ -631,8 +632,9 @@ export function GraficoSistemas({ tipo, linhas, anosReferencia }: { tipo: 'chuva
             },
           },
           scales: {
-            y: { beginAtZero: true, position: 'left', title: { display: true, text: v.tituloY } },
-            y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'MLT (%)' } },
+            // grace: folga acima do maior valor, para os rótulos não invadirem a legenda.
+            y: { beginAtZero: true, grace: '10%', position: 'left', title: { display: true, text: v.tituloY } },
+            y1: { beginAtZero: true, grace: '15%', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'MLT (%)' } },
           },
         },
         plugins: [ChartDataLabels],

@@ -18,8 +18,8 @@
 .pcp-card .pcp-valor { font-size: 1.75rem; font-weight: 800; color: var(--sp-ink); line-height: 1.1; }
 .pcp-card small { display: block; color: var(--sp-gray); margin-top: 4px; }
 
-.pcp-grafico-wrap { position: relative; min-height: 460px; }
-@media (max-width: 767px) { .pcp-grafico-wrap { min-height: 380px; } }
+.pcp-grafico-wrap { position: relative; min-height: 620px; }
+@media (max-width: 767px) { .pcp-grafico-wrap { min-height: 480px; } }
 
 .pcp-tabela { width: 100%; }
 .pcp-tabela th, .pcp-tabela td { text-align: center; vertical-align: middle; font-size: .84rem; }

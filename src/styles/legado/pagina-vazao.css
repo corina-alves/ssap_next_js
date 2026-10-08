@@ -19,8 +19,8 @@
 .vzo-card .vzo-valor { font-size: 1.5rem; font-weight: 800; color: var(--sp-ink); line-height: 1.15; }
 .vzo-card small { display: block; color: var(--sp-gray); margin-top: 4px; font-size: .74rem; }
 
-.vzo-grafico-wrap { position: relative; min-height: 460px; }
-@media (max-width: 767px) { .vzo-grafico-wrap { min-height: 380px; } }
+.vzo-grafico-wrap { position: relative; min-height: 620px; }
+@media (max-width: 767px) { .vzo-grafico-wrap { min-height: 480px; } }
 
 .vzo-tabela { width: 100%; }
 .vzo-tabela th, .vzo-tabela td { text-align: center; vertical-align: middle; font-size: .84rem; }
