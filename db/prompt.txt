@@ -1,0 +1,117 @@
+Tenho este projeto já desenvolvido em Next.js, e quero que você prepare o projeto completo para execução em Docker e ambiente de produção.
+Não recrie o projeto e não altere desnecessariamente o layout, funcionalidades, APIs ou regras de negócio existentes. Analise primeiro a estrutura atual e adapte o que já existe.
+O objetivo é que, em uma máquina nova ou no servidor, eu precise instalar somente Docker/Docker Compose, clonar o repositório, configurar o arquivo de variáveis de ambiente e executar um único comando para subir todo o sistema.
+A arquitetura deverá ser:
+Internet → Nginx → Next.js → PostgreSQL
+Quero containers separados para:
+1. Next.js — aplicação em modo de produção, usando npm run build e npm start, nunca next dev.
+2. PostgreSQL — banco de dados com volume persistente.
+3. Nginx — reverse proxy para a aplicação e preparado para HTTPS.
+Crie e configure no projeto:
+- Dockerfile otimizado para produção, preferencialmente multi-stage;
+- compose.yaml ou docker-compose.yml;
+- .dockerignore;
+- .env.example;
+- configuração do Nginx;
+- volumes persistentes necessários;
+- rede interna entre os containers;
+- healthchecks;
+- política de restart apropriada para produção;
+- configuração correta do Next.js para produção;
+- conexão do Next.js com PostgreSQL utilizando variáveis de ambiente;
+- migrations/inicialização do banco conforme a tecnologia que o projeto já utiliza;
+- tratamento adequado de uploads/arquivos persistentes, caso o sistema possua uploads;
+- logs adequados para produção.
+Segurança:
+- nenhuma senha, usuário, token, chave de API ou segredo pode ficar escrito no código, Dockerfile, compose.yaml ou arquivos versionados;
+- usar variáveis de ambiente;
+- garantir que .env esteja no .gitignore;
+- criar apenas .env.example sem valores secretos;
+- PostgreSQL não deve ficar exposto publicamente à internet;
+- somente os serviços realmente necessários devem publicar portas;
+- executar a aplicação com usuário não-root sempre que possível;
+- não usar credenciais padrão;
+- preparar headers de segurança adequados no Nginx;
+- não comprometer o funcionamento das APIs externas utilizadas pelo projeto.
+Persistência e banco de dados:
+O PostgreSQL deve utilizar volume persistente. Recriar ou atualizar um container não pode apagar o banco.
+Se houver arquivos enviados pelo usuário, boletins, PDFs, imagens ou documentos armazenados localmente, identifique onde estão e crie também persistência adequada para eles.
+Não coloque banco de dados ou arquivos importantes somente dentro do filesystem descartável de um container.
+Produção:
+Quero conseguir executar:
+docker compose up -d --build
+
+e ter o sistema completo funcionando.
+Também quero conseguir atualizar posteriormente utilizando algo semelhante a:
+git pull
+docker compose up -d --build
+
+sem perder os dados do PostgreSQL nem os arquivos persistentes.
+Prepare o Nginx para que futuramente o domínio do sistema possa utilizar HTTPS com certificado válido. Se a emissão automática do certificado exigir domínio/DNS já configurado, deixe a estrutura preparada e documente exatamente o que falta fazer no servidor, sem inventar domínio.
+Backup:
+Crie uma estratégia simples de backup do PostgreSQL, com script de pg_dump, e explique como restaurar o banco. Não coloque os backups dentro de um container descartável.
+Muito importante:
+Antes de criar os arquivos, analise:
+- package.json;
+- estrutura do Next.js;
+- versão do Node utilizada;
+- acesso atual ao PostgreSQL;
+- ORM/biblioteca de banco utilizada, se houver;
+- variáveis de ambiente existentes;
+- APIs externas;
+- diretórios de uploads/documentos;
+- .gitignore;
+- configurações atuais de desenvolvimento e produção.
+Não presuma nomes de tabelas, banco, usuário, diretórios ou variáveis. Descubra pela estrutura existente.
+Não apague arquivos existentes nem faça alterações destrutivas.
+Ao terminar:
+1. mostre todos os arquivos que foram criados ou alterados;
+2. explique resumidamente a função de cada um;
+3. valide o docker compose;
+4. faça o build da aplicação;
+5. suba os containers;
+6. verifique os healthchecks;
+7. verifique os logs em busca de erros;
+8. teste a conexão Next.js → PostgreSQL;
+9. confirme que os volumes persistentes estão funcionando;
+10. informe exatamente quais comandos eu precisarei executar no meu computador e posteriormente no servidor.
+Se encontrar algum problema no projeto durante a dockerização, não faça uma grande alteração por conta própria. Explique o problema e faça somente a correção mínima necessária.
+Ao final, quero que o projeto esteja pronto para eu enviar ao GitHub e posteriormente implantar em um servidor de produção com Docker.
+
+Para o seu projeto, eu acrescentaria ainda uma exigência importante: não colocar boletins/documentos dentro do próprio container do Next.js sem volume persistente. Se o container for recriado durante uma atualização, esses arquivos poderiam desaparecer. 
+Depois que o Claude terminar, a estrutura provavelmente ficará parecida com:
+ssap/
+├── app/
+├── public/
+├── ...
+├── Dockerfile
+├── compose.yaml
+├── .dockerignore
+├── .env
+├── .env.example
+├── .gitignore
+│
+├── docker/
+│   ├── nginx/
+│   │   └── nginx.conf
+│   └── scripts/
+│       ├── backup-db.sh
+│       └── restore-db.sh
+│
+└── package.json
+
+E no servidor a ideia será bem simples:
+git clone SEU_REPOSITORIO
+cd ssap
+
+# criar/configurar o .env
+
+docker compose up -d --build
+
+Depois você poderá verificar:
+docker compose ps
+
+e logs:
+docker compose logs -f
+
+O ponto principal é: Docker empacota as dependências da aplicação, mas não elimina a necessidade de preparar o servidor. Para produção ainda existirão algumas tarefas de infraestrutura, principalmente instalar Docker, configurar domínio/DNS, firewall, HTTPS, backups e política de atualização. O servidor não precisará ter XAMPP, Node, npm ou PostgreSQL instalados separadamente.
