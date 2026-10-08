@@ -91,6 +91,24 @@ export async function volumeCantareira(ymd = hojeSp()): Promise<Dado<VolumeAna>>
   return comoDado(FONTE, null);
 }
 
+/**
+ * Volume útil (%) do Sistema Cantareira em cada dia pedido (séries: curva de
+ * contingência). Só entram os dias que a ANA publicou. Busca em lotes de 10;
+ * dia passado fica em cache para sempre.
+ */
+export async function volumesCantareira(datas: string[]): Promise<Map<string, number>> {
+  const saida = new Map<string, number>();
+  for (let i = 0; i < datas.length; i += 10) {
+    const lote = datas.slice(i, i + 10);
+    const rs = await Promise.all(lote.map(medicoes));
+    rs.forEach((r, j) => {
+      const v = pct(r?.valor.find((m) => normalizar(m.estado ?? '').includes('CANTAREIRA'))?.volumeUtil ?? null);
+      if (v !== null) saida.set(lote[j]!, v);
+    });
+  }
+  return saida;
+}
+
 /** Volume útil (%) do reservatório Jaguari (Paraíba do Sul), recuando até 7 dias. */
 export async function volumeJaguari(ymd = hojeSp()): Promise<Dado<VolumeAna>> {
   const datas = Array.from({ length: 7 }, (_, i) => somarDias(ymd, -i));

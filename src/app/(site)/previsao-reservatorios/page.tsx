@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import '@/styles/legado/pagina-previsao-reservatorios.css';
 import { GraficoPrevisaoSistemas } from '@/components/graficos-php';
-import { MapaPontos } from '@/components/graficos/mapa-pontos';
+import { centroArea, MapaPontos } from '@/components/graficos/mapa-pontos';
+import { MapaSistemas } from '@/components/graficos/mapa-sistemas';
 import { Hero, Principal, Secao } from '@/components/site/layout';
 import { dataBr, dataHora } from '@/lib/formato';
-import { contornoSP } from '@/lib/integracoes/ibge';
+import { classeChuva } from '@/lib/hidrologia/previsao';
+import areas from '@/conteudo/sistemas-produtores-areas.json';
+import { contornoSP, type Contorno } from '@/lib/integracoes/ibge';
 import { CENTROIDES_SISTEMAS, previsaoSistemas } from '@/lib/integracoes/openmeteo';
 
 export const metadata: Metadata = {
@@ -22,6 +25,13 @@ export default async function PrevisaoReservatorios() {
   const media = (dias: number) => s.reduce((t, x) => t + soma(x.chuvaMm, dias), 0) / n;
   const maior = s.reduce<(typeof s)[number] | null>((m, x) => (!m || soma(x.chuvaMm, 7) > soma(m.chuvaMm, 7) ? x : m), null);
   const datas = s[0]?.datas ?? [];
+  const titulo = 'Chuva prevista em 7 dias na área de drenagem de cada sistema produtor';
+  const mapa = s.map((x) => {
+    const ctr = CENTROIDES_SISTEMAS.find((p) => p.sistema === x.sistema)!;
+    const area = areas.features.find((f) => f.properties.sistema === x.sistema)?.geometry.coordinates as Contorno | undefined;
+    const dica = { valor: `Hoje: ${fmt(soma(x.chuvaMm, 1))} mm`, rotulo: `${x.sistema} · 7 dias: ${fmt(soma(x.chuvaMm, 7))} mm` };
+    return { nome: x.sistema, lat: ctr.lat, lon: ctr.lon, chuvaMm: soma(x.chuvaMm, 7), area, dias: x.chuvaMm, dica };
+  });
   const cards = [
     { rot: 'Chuva hoje (média)', val: `${fmt(media(1))} mm`, ico: 'bi-cloud-rain', cls: 'card-primary' },
     { rot: 'Acumulado 48 h (média)', val: `${fmt(media(2))} mm`, ico: 'bi-cloud-drizzle', cls: 'card-primary' },
@@ -63,15 +73,31 @@ export default async function PrevisaoReservatorios() {
           <>
             <div className="row g-3">
               <div className="col-lg-6">
-                <Secao titulo="Localização dos sistemas" subtitulo="Ponto central de cada sistema produtor, colorido pela chuva prevista em 7 dias." icone="bi-geo-alt">
-                  <MapaPontos
-                    titulo="Chuva prevista em 7 dias no ponto central de cada sistema produtor"
-                    contorno={c.ok ? c.dados : null}
-                    pontos={s.map((x) => {
-                      const ctr = CENTROIDES_SISTEMAS.find((p) => p.sistema === x.sistema)!;
-                      return { nome: x.sistema, lat: ctr.lat, lon: ctr.lon, chuvaMm: soma(x.chuvaMm, 7) };
+                <Secao titulo="Localização dos sistemas" subtitulo="Área de drenagem de cada sistema produtor, colorida pela chuva prevista em 7 dias. Passe o mouse para ver a chuva de hoje; clique para ver os demais horizontes." icone="bi-geo-alt">
+                  <link rel="stylesheet" href="/acesso/vendor/leaflet/leaflet.css" precedence="default" />
+                  <MapaSistemas
+                    titulo={titulo}
+                    sistemas={mapa.flatMap((x) => {
+                      const centro = x.area && centroArea(x.area);
+                      if (!x.area || !centro) return [];
+                      return [
+                        {
+                          nome: x.nome,
+                          area: x.area,
+                          centro: [centro[1], centro[0]] as [number, number],
+                          classe: classeChuva(x.chuvaMm),
+                          linhas: [
+                            ['Hoje', `${fmt(soma(x.dias, 1))} mm`],
+                            ['48 h', `${fmt(soma(x.dias, 2))} mm`],
+                            ['72 h', `${fmt(soma(x.dias, 3))} mm`],
+                            ['7 dias', `${fmt(x.chuvaMm)} mm`],
+                          ] as [string, string][],
+                        },
+                      ];
                     })}
-                  />
+                  >
+                    <MapaPontos titulo={titulo} contorno={c.ok ? c.dados : null} margemGraus={0.12} pontos={mapa} />
+                  </MapaSistemas>
                 </Secao>
               </div>
               <div className="col-lg-6">

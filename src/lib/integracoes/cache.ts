@@ -40,9 +40,21 @@ export const TTL = {
 } as const;
 
 const MAX_MEMORIA = 300;
-const memoria = new Map<string, Entrada<unknown>>();
-const emAndamento = new Map<string, Promise<Lembrado<unknown> | null>>();
-const falhaRecente = new Map<string, { em: number; erro: string }>();
+type Estado = {
+  memoria: Map<string, Entrada<unknown>>;
+  emAndamento: Map<string, Promise<Lembrado<unknown> | null>>;
+  falhaRecente: Map<string, { em: number; erro: string }>;
+};
+// No globalThis: o módulo pode ser carregado mais de uma vez no mesmo processo
+// (recarga em desenvolvimento, pacotes separados por rota). Sem isso, cada cópia
+// esqueceria as falhas recentes e chamaria de novo, a cada página, as fontes que
+// ainda não publicaram o dia.
+const estado = ((globalThis as { __ssapCacheIntegracoes?: Estado }).__ssapCacheIntegracoes ??= {
+  memoria: new Map(),
+  emAndamento: new Map(),
+  falhaRecente: new Map(),
+});
+const { memoria, emAndamento, falhaRecente } = estado;
 
 let diretorio: string | null = null;
 

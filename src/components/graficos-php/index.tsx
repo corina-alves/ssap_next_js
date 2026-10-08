@@ -245,20 +245,23 @@ export function GraficoCantareiraHome({ pontos }: { pontos: { ano: number; volum
               data: pontos.map((p) => p.volume),
               borderColor: '#1565c0',
               backgroundColor: 'rgba(21,101,192,0.08)',
-              borderWidth: 5,
+              borderWidth: 4,
               tension: 0.3,
               pointRadius: 5,
               pointHoverRadius: 7,
+              pointBackgroundColor: '#1565c0',
               fill: true,
             },
           ],
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { right: 16 } },
           plugins: {
-            legend: { display: true, labels: { color: '#24364b', font: { size: 14, weight: 'bold' } } },
+            legend: { display: false },
             tooltip: { callbacks: { label: (c) => Number(c.parsed.y).toFixed(1) + '%' } },
-            datalabels: { align: 'top', anchor: 'end', color: '#24364b', formatter: (v: number | null) => Number(v).toFixed(1) + '%' },
+            datalabels: { align: 'top', anchor: 'end', color: '#24364b', font: { size: 11, weight: 'bold' }, formatter: (v: number | null) => Number(v).toFixed(1) + '%' },
           },
           scales: { y: { beginAtZero: true, max: 120, title: { display: true, color: '#24364b', text: 'Volume (%)' } } },
         },
@@ -273,7 +276,7 @@ export function GraficoCantareiraHome({ pontos }: { pontos: { ano: number; volum
 /** Linhas de faixa SEM rótulo numérico no topo do gráfico. */
 function faixas() {
   const mk = (y: number, cor: string) => ({ type: 'line' as const, yMin: y, yMax: y, borderColor: cor, borderWidth: 2, borderDash: [6, 6] });
-  return { f60: mk(60, '#f4b400'), f40: mk(40, '#e08600'), f30: mk(30, '#dc3545'), f20: mk(20, '#8c1c24') };
+  return { f60: mk(60, '#f4b400'), f40: mk(40, '#e08600'), f30: mk(30, '#dc3545'), f20: mk(20, '#800080') };
 }
 
 /** "Comparativo de volumes" (grafSistema). */
@@ -343,13 +346,13 @@ export function GraficoPesosSim() {
       className="mt-3"
       chave="pesos"
       rotulo={`Participação de cada sistema no SIM: ${Object.entries(PESOS)
-        .map(([k, v]) => `${k} ${num(v, 2, '%')}`)
+        .map(([k, v]) => `${k} ${num(v, 1, '%')}`)
         .join('; ')}`}
-      montar={() => ({
+      montar={({ ChartDataLabels }) => ({
         type: 'doughnut',
         data: {
-          // Valor sem arredondamento também na legenda (fatias pequenas não comportam rótulo).
-          labels: Object.keys(PESOS).map((k) => `${k} (${num(PESOS[k], 2, '%')})`),
+          // Valor de todas as fatias também na legenda (as pequenas não comportam rótulo).
+          labels: Object.keys(PESOS).map((k) => `${k} (${num(PESOS[k], 1, '%')})`),
           datasets: [
             {
               data: Object.values(PESOS),
@@ -362,10 +365,17 @@ export function GraficoPesosSim() {
         options: {
           plugins: {
             legend: { position: 'bottom', labels: { boxWidth: 11, font: { size: 10 } } },
-            datalabels: { display: false },
+            // Valor em cima da fatia, só nas que comportam o rótulo.
+            datalabels: {
+              display: (c) => Number(c.dataset.data[c.dataIndex]) >= 4,
+              color: '#fff',
+              font: { size: 12, weight: 'bold' },
+              formatter: (v: number) => num(v, 1, '%'),
+            },
             tooltip: { callbacks: { label: (c) => c.label } },
           },
         },
+        plugins: [ChartDataLabels],
       })}
     />
   );
@@ -703,12 +713,15 @@ export function GraficoCurvaContingencia({
   curvaSim,
   curvaCantareira,
   observado,
+  fonteCantareira,
 }: {
   inicio: string;
   fim: string;
   curvaSim: { data: string; valor: number }[];
   curvaCantareira: { data: string; valor: number }[];
   observado: { data: string; sim: number | null; cantareira: number | null }[];
+  /** Fonte do Cantareira observado, mostrada na legenda. */
+  fonteCantareira?: string;
 }) {
   const obsSim = observado.filter((o) => o.sim !== null);
   const obsCant = observado.filter((o) => o.cantareira !== null);
@@ -736,7 +749,7 @@ export function GraficoCurvaContingencia({
             serie('SIM', 'Curva de Contingência', curvaSim.map((p) => ({ x: emMs(p.data), y: p.valor })), '#00a8ff', 3, ultimoSim, 1),
             serie('SIM', 'Observado', obsSim.map((o) => ({ x: emMs(o.data), y: o.sim! })), '#111827', 2.5, ultimoSim, 0),
             serie('Cantareira', 'Curva de Contingência', curvaCantareira.map((p) => ({ x: emMs(p.data), y: p.valor })), '#2ecc71', 3, ultimoCant, 1),
-            serie('Cantareira', 'Observado', obsCant.map((o) => ({ x: emMs(o.data), y: o.cantareira! })), '#1d237a', 2.5, ultimoCant, 0),
+            serie('Cantareira', fonteCantareira ? `Observado (${fonteCantareira.split(';')[0]})` : 'Observado', obsCant.map((o) => ({ x: emMs(o.data), y: o.cantareira! })), '#1d237a', 2.5, ultimoCant, 0),
           ],
         },
         options: {

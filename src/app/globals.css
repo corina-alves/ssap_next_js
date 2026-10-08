@@ -527,7 +527,7 @@ h3 {
   --est-atencao: #fab219;
   --est-alerta: #ec835a;
   --est-critico: #d03b3b;
-  --est-emergencia: #8e1f1f;
+  --est-emergencia: #800080;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -539,7 +539,7 @@ h3 {
     --eixo-linha: #383835;
     --texto-mudo: #a3a29a;
     --superficie-grafico: #1a1a19;
-    --est-emergencia: #e06b6b;
+    --est-emergencia: #d98ad9;
   }
 }
 

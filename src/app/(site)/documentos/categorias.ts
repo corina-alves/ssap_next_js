@@ -133,13 +133,13 @@ export const CATEGORIAS: Record<string, CategoriaDocumentos> = {
           {
             titulo: 'Nota Informativa — Armazenamento do Cantareira',
             desc: 'Avaliação da situação de armazenamento e das medidas de restrição.',
-            href: '/nota_informativa_conjunta',
+            href: '/legado/nota_tecnica_arsesp_spaguas/SEI_0100243788_Informacao.pdf',
             icone: 'bi-file-earmark-bar-graph',
           },
           {
-            titulo: 'Nota Informativa — Metodologia de Projeções',
-            desc: 'Metodologia de projeções hidrológicas do Comitê de Integração.',
-            href: '/nota_informativa_conjunta2',
+            titulo: 'Nota Informativa — Metodologia de Acompanhamento',
+            desc: 'Metodologia de acompanhamento da segurança hídrica dos sistemas produtores do SIM.',
+            href: '/legado/nota_tecnica_arsesp_spaguas/Nota_Informativa_Conjunta2026-2027.pdf',
             icone: 'bi-file-earmark-ruled',
           },
         ],

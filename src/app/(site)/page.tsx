@@ -3,16 +3,21 @@ import { Suspense } from 'react';
 import '@/styles/legado/estilo-inicio.css';
 import '@/styles/legado/index.css';
 import '@/styles/legado/index-inline.css';
-import { GraficoCantareiraHome, GraficoResumoSistemas } from '@/components/graficos-php';
+import '@/styles/legado/pagina-inicio-volume.css';
+import '@/styles/legado/pagina-inicio-faixas.css';
+import '@/styles/legado/pagina-inicio-salas.css';
+import '@/styles/legado/pagina-inicio-hero.css';
 import { texto } from '@/components/paginacao';
-import { SelectAutoEnvio } from '@/components/site/auto-envio';
 import { dataBr, dataHora } from '@/lib/formato';
-import { localizarMunicipio } from '@/lib/hidrologia/previsao';
-import { painelReservatorios, serieAnual } from '@/lib/hidrologia/reservatorios';
+import { hojeSp } from '@/lib/integracoes/comum';
 import { municipiosSP } from '@/lib/integracoes/ibge';
-import { previsaoMunicipio, previsaoSistemas } from '@/lib/integracoes/openmeteo';
-import { ID_CANTAREIRA } from '@/lib/integracoes/sabesp';
+import { previsaoSistemas } from '@/lib/integracoes/openmeteo';
 import { chuvaAgora } from '@/lib/integracoes/sibh';
+import { AcompanhamentoVolume } from './acompanhamento-volume';
+import { FaixasAtuacao } from './faixas-atuacao';
+import { PrevisaoHero } from './previsao-hero';
+import { previsaoHero } from './previsao-hero-acao';
+import { SalasSituacao } from './salas-situacao';
 
 /** Página inicial — mesma estrutura do index.php do site PHP. */
 
@@ -29,18 +34,11 @@ const ACESSO_RAPIDO = [
   { href: 'https://hidroapp.spaguas.sp.gov.br/', cor: 'card-red', icone: 'bi-bar-chart-line', titulo: 'HidroApp', texto: 'Indicadores para apoio à gestão hídrica.', externo: true },
 ];
 
-const SALAS = [
-  { href: '/', img: 'sssp.jpg', tag: 'Estadual', titulo: 'Sala de Situação Alfredo Pisani', texto: 'Monitoramento das condições hidrológicas do Sistema Cantareira e dos principais sistemas produtores metropolitanos e redes telemétricas de chuvas, níveis e vazões do Estado de São Paulo.' },
-  { href: 'https://www.sspcj.org.br/', img: 'piracicaba.jpg', tag: 'Bacias PCJ', titulo: 'Sala de Situação PCJ', texto: 'Monitoramento das condições hidrológicas das Bacias dos rios Piracicaba, Capivari e Jundiaí.', externo: true },
-  { href: 'https://salasituacaohidrobs.com.br/agem-painel/mapa', img: 'sala_nph.png', tag: 'Baixada Santista', titulo: 'Sala de Situação Baixada Santista', texto: 'Acompanhamento de chuvas, níveis e vazões dos principais rios da Região Metropolitana da Baixada Santista.', externo: true },
-  { href: '/boletins/ribeira', img: 'outorga.jpg', tag: 'Vale do Ribeira', titulo: 'Sala de Situação Vale do Ribeira', texto: 'Integração de dados e acompanhamento das condições hidrológicas da região do Vale do Ribeira.' },
-];
-
 const DESTAQUES = [
-  { href: 'https://apps.spaguas.sp.gov.br/sibh/chuva_agora/', img: 'chuvaagora.png', titulo: 'Chuva Agora', texto: 'Monitoramento em tempo real das chuvas registradas no Estado.', externo: true },
-  { href: 'https://hidroapp.spaguas.sp.gov.br/', img: 'hidroapp.png', titulo: 'HidroApp', texto: 'Indicadores de disponibilidade, clima e vulnerabilidade hídrica.', externo: true },
-  { href: 'https://www.saisp.br/estaticos/sitenovo/home.html', img: null, titulo: 'Radar SP Águas', texto: 'Acompanhamento meteorológico e radar de Ponte Nova.', externo: true },
-  { href: '/protocolo_escassez', img: 'protocolo_escassez.png', titulo: 'Protocolo de Escassez', texto: 'Consulte o enquadramento e as medidas previstas para cada estágio.' },
+  { href: 'https://apps.spaguas.sp.gov.br/sibh/chuva_agora/', img: 'chuvaagora.png', cor: 'azul', icone: 'bi-cloud-drizzle', titulo: 'Chuva Agora', texto: 'Monitoramento em tempo real das chuvas registradas no Estado.', acao: 'Acessar mapa', externo: true },
+  { href: 'https://hidroapp.spaguas.sp.gov.br/', img: 'hidroapp.png', cor: 'verde', icone: 'bi-bar-chart-line', titulo: 'HidroApp', texto: 'Indicadores de disponibilidade, clima e vulnerabilidade hídrica.', acao: 'Acessar indicadores', externo: true },
+  { href: 'https://www.saisp.br/estaticos/sitenovo/home.html', img: null, cor: 'indigo', icone: 'bi-bullseye', titulo: 'Radar SP Águas', texto: 'Acompanhamento meteorológico e radar de Ponte Nova.', acao: 'Acessar radar', externo: true },
+  { href: '/protocolo_escassez', img: 'protocolo_escassez.png', cor: 'laranja', icone: 'bi-file-earmark-text', titulo: 'Protocolo de Escassez', texto: 'Consulte o enquadramento e as medidas previstas para cada estágio.', acao: 'Consultar estágios' },
 ];
 
 function Atalho({ href, externo, className, style, children }: { href: string; externo?: boolean; className: string; style?: React.CSSProperties; children: React.ReactNode }) {
@@ -57,30 +55,10 @@ function Atalho({ href, externo, className, style, children }: { href: string; e
 
 // ---------------------------------------------------------------------------
 
+/** Lista de municípios e previsão inicial do cartão; a troca de município é feita no cliente. */
 async function CartaoPrevisao({ municipio }: { municipio: string }) {
-  const local = await localizarMunicipio(municipio);
-  if (!local.ok) return <div className="alert alert-warning mt-3 mb-0">{local.mensagem}</div>;
-  const r = await previsaoMunicipio(local.local.lat, local.local.lon);
-  if (!r.ok) return <div className="alert alert-warning mt-3 mb-0">Não foi possível carregar a previsão deste município.</div>;
-  const hoje = r.dados.dias[0];
-  return (
-    <>
-      <h2>{local.local.nome}</h2>
-      <p className="text-secondary">{hoje ? dataBr(hoje.data) : ''}</p>
-      <div className="valor-chuva mt-4">🌧️ {fmt(hoje?.chuvaMm)} mm</div>
-      <p className="mt-3 text-secondary">Acumulado previsto para o dia.</p>
-      <div className="temperaturas">
-        <div className="temp-box">
-          <small>Temperatura Máxima</small>
-          <strong>☀️ {fmt(hoje?.tmax, 1, '°C')}</strong>
-        </div>
-        <div className="temp-box">
-          <small>Temperatura Mínima</small>
-          <strong>🌙 {fmt(hoje?.tmin, 1, '°C')}</strong>
-        </div>
-      </div>
-    </>
-  );
+  const [lista, inicial] = await Promise.all([municipiosSP(), previsaoHero(municipio)]);
+  return <PrevisaoHero municipios={lista.ok ? lista.dados.map((m) => m.nome) : ['São Paulo']} municipio={municipio} inicial={inicial} />;
 }
 
 async function ChuvaAgora() {
@@ -197,57 +175,6 @@ async function ChuvaAgora() {
   );
 }
 
-async function AcompanhamentoVolume() {
-  const r = await painelReservatorios();
-  if (!r.ok) return <div className="alert alert-warning">{r.mensagem}</div>;
-  const d = r.dados;
-  const serie = await serieAnual(d.dataUsada, ID_CANTAREIRA);
-  return (
-    <div className="row g-3 align-items-stretch">
-      <div className="col-xl-3 col-lg-4">
-        <div className="dashboard-card">
-          <div className="dashboard-card-header">
-            <div className="dashboard-card-title">
-              <i className="bi bi-bar-chart-fill" />
-              <h3>Principais Sistemas</h3>
-            </div>
-          </div>
-          <div className="dashboard-card-body">
-            <div className="resumo-chart-intro">
-              <strong>Volume útil atual</strong>
-              <small>Comparativo dos volumes úteis atuais dos principais sistemas metropolitanos.</small>
-            </div>
-            <div className="grafico-resumo-wrapper">
-              <GraficoResumoSistemas cantareira={d.cantareira?.volume ?? null} altoTiete={d.altoTiete?.volume ?? null} sim={d.sim?.volume ?? null} />
-            </div>
-            <div className="resumo-atualizacao">Dados de {dataBr(d.dataUsada)}</div>
-          </div>
-        </div>
-      </div>
-      <div className="col-xl-9 col-lg-8">
-        <div className="dashboard-card-cantareira">
-          <div className="dashboard-card-header">
-            <div className="dashboard-card-title">
-              <i className="bi bi-graph-up" />
-              <h3>Evolução do Volume - Cantareira</h3>
-            </div>
-            <span className="badge rounded-pill text-bg-light">Histórico comparativo</span>
-          </div>
-          <div className="dashboard-card-body chart-area">
-            <GraficoCantareiraHome pontos={serie.map((p) => ({ ano: p.ano, volume: p.volume }))} />
-            <div className="chart-footer">
-              <small>Valores referentes ao mesmo dia e mês de cada ano.</small>
-              <Link href="/reservatorios" className="btn btn-sm btn-outline-primary px-3">
-                Ver reservatórios
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 async function PrevisaoSistemas() {
   const r = await previsaoSistemas(7);
   if (!r.ok) return <div className="col-12 text-center text-secondary py-4">{r.mensagem}</div>;
@@ -289,7 +216,6 @@ async function PrevisaoSistemas() {
 
 export default async function Inicio({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const municipio = texto((await searchParams).municipio, 80) || 'São Paulo';
-  const lista = await municipiosSP();
 
   return (
     <>
@@ -307,17 +233,23 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
                   <span>Alfredo Pisani</span>
                 </h1>
                 <p>
-                  Informações integradas sobre chuvas, vazões, níveis, reservatórios e condições meteorológicas para apoiar o
-                  acompanhamento e a tomada de decisão na gestão dos recursos hídricos do Estado de São Paulo.
+                  Monitoramento integrado de chuvas, níveis, vazões, reservatórios e condições meteorológicas para apoio à gestão dos
+                  recursos hídricos do Estado de São Paulo.
                 </p>
+                <div className="hp-estado">
+                  <strong>Monitoramento ativo</strong>
+                  <span>Dados hidrológicos • meteorológicos • reservatórios</span>
+                </div>
                 <div className="hero-actions">
-                  <a href="https://apps.spaguas.sp.gov.br/sibh/chuva_agora/" target="_blank" rel="noopener" className="btn btn-primary">
-                    <i className="bi bi-cloud-rain-heavy me-2" />
-                    Chuva Agora
+                  <a href="#painel" className="btn btn-primary">
+                    <i className="bi bi-bar-chart-fill" />
+                    Acessar painel
+                    <i className="bi bi-arrow-right" />
                   </a>
-                  <a href="#painel" className="btn btn-outline-light">
-                    <i className="bi bi-grid me-2" />
-                    Ver painel
+                  <a href="https://apps.spaguas.sp.gov.br/sibh/chuva_agora/" target="_blank" rel="noopener" className="btn btn-outline-light">
+                    <i className="bi bi-cloud-rain-heavy-fill" />
+                    Chuva Agora
+                    <i className="bi bi-arrow-right" />
                   </a>
                 </div>
               </div>
@@ -328,32 +260,15 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
                   <div className="hero-weather-icon">
                     <i className="bi bi-geo-alt-fill" />
                   </div>
-                  <div>
-                    <h2 style={{ fontSize: '1.1rem', color: '#063669', fontWeight: 800 }}>Previsão meteorológica</h2>
-                  </div>
+                  <h2>Previsão meteorológica</h2>
+                  <span className="hp-data">
+                    <i className="bi bi-calendar3" />
+                    {dataBr(hojeSp())}
+                  </span>
                 </div>
-                <form method="get">
-                  <label htmlFor="municipioSelectHero" className="form-label">
-                    Selecione o município
-                  </label>
-                  <SelectAutoEnvio id="municipioSelectHero" name="municipio" defaultValue={municipio} className="form-select hero-municipio-select">
-                    {(lista.ok ? lista.dados.map((m) => m.nome) : ['São Paulo']).map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </SelectAutoEnvio>
-                  <noscript>
-                    <button type="submit" className="btn btn-sm btn-primary mt-2">
-                      Ver
-                    </button>
-                  </noscript>
-                </form>
-                <div id="boxPrevisaoMunicipioHero">
-                  <Suspense fallback={<div className="text-secondary py-4 text-center">Carregando previsão...</div>}>
-                    <CartaoPrevisao municipio={municipio} />
-                  </Suspense>
-                </div>
+                <Suspense fallback={<div className="text-secondary py-4 text-center">Carregando previsão...</div>}>
+                  <CartaoPrevisao municipio={municipio} />
+                </Suspense>
               </div>
             </div>
           </div>
@@ -432,30 +347,11 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
           <section className="salas-section">
             <div className="section-head">
               <div>
-                <h2>Salas de Situação</h2>
-                <p>Parcerias regionais para monitoramento e acompanhamento das condições hídricas.</p>
+                <h2>Rede de Salas de Situação</h2>
+                <p>Parcerias regionais para monitoramento e acompanhamento das condições hidrológicas.</p>
               </div>
             </div>
-            <div className="row g-4">
-              {SALAS.map((s) => (
-                <div className="col" key={s.titulo}>
-                  <Atalho href={s.href} externo={s.externo} className="sala-card" style={{ backgroundImage: `url('/legado/img/${s.img}')` }}>
-                    <div className="sala-card-content">
-                      <span className="sala-card-tag">
-                        <i className="bi bi-geo-alt" />
-                        {s.tag}
-                      </span>
-                      <h3>{s.titulo}</h3>
-                      <p>{s.texto}</p>
-                      <span className="sala-card-link">
-                        Acessar sala
-                        <i className="bi bi-arrow-up-right" />
-                      </span>
-                    </div>
-                  </Atalho>
-                </div>
-              ))}
-            </div>
+            <SalasSituacao />
           </section>
 
           <section className="mt-5">
@@ -467,30 +363,9 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
                 </p>
               </div>
             </div>
-            <div className="row g-3">
-              <div className="col">
-                <a
-                  href="https://app.powerbi.com/view?r=eyJrIjoiNzE3NGY2ZGQtYjc1OC00ZThiLTgxZDgtMDhlZDQ1OTM0YmI2IiwidCI6IjNhNzhiMGNkLTdjOGUtNDkyOS04M2Q1LTE5MGE2Y2MwMTM2NSJ9"
-                  target="_blank"
-                  rel="noopener"
-                  className="sala-card"
-                  style={{ backgroundImage: "url('/legado/img/curva_contingencia.png')" }}
-                >
-                  <div className="sala-card-content">
-                    <span className="sala-card-tag">
-                      <i className="bi bi-geo-alt" />
-                      SP-Águas e Arsesp
-                    </span>
-                    <h3>Painel de Acompanhamento das FAIXAS</h3>
-                    <p>Acompanhamento das faixas de atuação e das condições hidrológicas dos Sistemas de Abastecimento.</p>
-                    <span className="sala-card-link">
-                      Acessar Painel
-                      <i className="bi bi-arrow-up-right" />
-                    </span>
-                  </div>
-                </a>
-              </div>
-            </div>
+            <Suspense fallback={<div className="text-secondary py-4 text-center">Carregando dados...</div>}>
+              <FaixasAtuacao />
+            </Suspense>
           </section>
 
           <section className="mt-5">
@@ -503,11 +378,17 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
             <div className="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
               {DESTAQUES.map((d) => (
                 <div className="col" key={d.titulo}>
-                  <Atalho href={d.href} externo={d.externo} className="highlight-card" style={d.img ? { backgroundImage: `url('/legado/img/${d.img}')` } : undefined}>
-                    <div>
-                      <h3>{d.titulo}</h3>
-                      <p>{d.texto}</p>
-                    </div>
+                  <Atalho href={d.href} externo={d.externo} className={`dq-card dq-card--${d.cor}`}>
+                    {d.img && <span className="dq-card__fundo" style={{ backgroundImage: `url('/legado/img/${d.img}')` }} />}
+                    <span className="dq-card__icone">
+                      <i className={`bi ${d.icone}`} />
+                    </span>
+                    <h3>{d.titulo}</h3>
+                    <p>{d.texto}</p>
+                    <span className="dq-card__acao">
+                      {d.acao}
+                      <i className="bi bi-arrow-right" />
+                    </span>
                   </Atalho>
                 </div>
               ))}

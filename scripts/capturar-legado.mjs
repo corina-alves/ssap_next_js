@@ -21,8 +21,6 @@ const PAGINAS = {
   nota_informativa: 'novo',
   'situacao-outorgas': 'novo',
   monitoramento_hidrologico: 'novo',
-  protocolo: 'antigo',
-  deliberacao_dss: 'antigo',
 };
 
 // Páginas que existem no Next com o mesmo nome do PHP (sem .php).
@@ -31,7 +29,9 @@ const ROTAS = new Set([
   'reservatorios', 'precipitacao', 'vazao', 'previsao', 'previsao-reservatorios', 'boletins',
   'curva_contingencia', 'evolucao-sim-cant', 'vazoes-outorgadas', 'atos-administrativos-outorga',
   // páginas próprias em React (texto em src/conteudo/)
-  'resolucao_regulatorio_ana_spaguas', 'nota_informativa_conjunta', 'nota_informativa_conjunta2',
+  'resolucao_regulatorio_ana_spaguas', 'deliberacao_dss', 'protocolo',
+  // redirecionam para o PDF (next.config.ts)
+  'nota_informativa_conjunta', 'nota_informativa_conjunta2',
 ]);
 
 function recortar(html, tipo, pagina) {

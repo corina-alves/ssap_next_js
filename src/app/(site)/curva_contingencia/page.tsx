@@ -103,9 +103,11 @@ export default async function CurvaContingencia({ searchParams }: { searchParams
           icone="bi-graph-up"
         >
           <div style={{ position: 'relative', height: 470 }}>
-            <GraficoCurvaContingencia inicio={d.inicio} fim={d.fim} curvaSim={d.curvaSim} curvaCantareira={d.curvaCantareira} observado={d.observado} />
+            <GraficoCurvaContingencia inicio={d.inicio} fim={d.fim} curvaSim={d.curvaSim} curvaCantareira={d.curvaCantareira} observado={d.observado} fonteCantareira={d.fonteCantareira} />
           </div>
-          <div className="credito-grafico mt-3 text-end">Elaborado pela Sala de Situação Alfredo Pisani</div>
+          <div className="credito-grafico mt-3 text-end">
+            Volume observado — SIM: Sabesp · Cantareira: {d.fonteCantareira}. Elaborado pela Sala de Situação Alfredo Pisani
+          </div>
         </Secao>
       </Principal>
     </>

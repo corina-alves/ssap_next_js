@@ -50,7 +50,7 @@
   --est-atencao: var(--sp-warning);
   --est-alerta: var(--sp-orange);
   --est-critico: var(--sp-danger);
-  --est-emergencia: var(--sp-danger-dark);
+  --est-emergencia: #800080;
 }
 
 /* Links herdam a cor do texto; botões e itens de submenu mantêm a cor do PHP. */
@@ -116,6 +116,22 @@
   cursor: default;
 }
 
+.mapa-area {
+  stroke: #123a5e;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  cursor: default;
+}
+
+.mapa-area:hover,
+g:focus-visible > .mapa-area {
+  stroke-width: 2.4;
+}
+
+.mapa-pontos text {
+  pointer-events: none;
+}
+
 .mapa-rotulo-pequeno {
   font-size: 13px;
 }
@@ -154,3 +170,9 @@
     margin-right: 0.25rem;
   }
 }
+
+/* Estágio de Emergência dos sistemas produtores: roxo (#800080) também nas regras copiadas do PHP. */
+.public-page .rsv-card.is-emergencia { --rsv-cor: var(--est-emergencia); }
+.public-page .rsv-estagios .cor.is-emergencia { background: var(--est-emergencia); }
+.public-page .pesc-estagio.e4 { background: var(--est-emergencia); }
+.public-page :is(.estagio.e4, .estagio-mini.e4, .emergencia) { --card-accent: var(--est-emergencia); }
