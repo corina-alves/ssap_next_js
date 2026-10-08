@@ -143,6 +143,7 @@ body { color: var(--ac-tinta); }
 
 .acesso-conteudo { flex: 1; min-width: 0; width: 100%; max-width: 1400px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; }
 .acesso-conteudo--fluido { max-width: none; } /* página na largura toda da tela: $conteudoFluido = true antes do app_inicio */
+.acesso-conteudo:has(.acesso-grafico--sistema) { max-width: none; } /* Sistemas produtores: largura toda, para o gráfico ficar mais comprido */
 .acesso-rodape { text-align: center; color: var(--ac-cinza); font-size: .78rem; padding: 24px 0 0; margin-top: auto; }
 
 /* Cabeçalho de página */
@@ -335,9 +336,9 @@ a.acesso-atalho:hover { border-color: var(--ac-azul); background: #f5f9fc; }
 .dc-zap-icone { color: #25d366; }
 
 /* Tabela ao lado do gráfico dos sistemas produtores (sistemas_produtores/) */
-.acesso-tabela-sistema { font-size: .95rem; }
-.acesso-tabela-sistema th { white-space: nowrap; vertical-align: bottom; }
-.acesso-tabela-sistema td { white-space: nowrap; padding-top: .45rem; padding-bottom: .45rem; }
+.acesso-tabela-sistema { font-size: .8rem; }
+.acesso-tabela-sistema th { white-space: nowrap; vertical-align: bottom; padding-left: .3rem; padding-right: .3rem; }
+.acesso-tabela-sistema td { white-space: nowrap; padding: .3rem; }
 .acesso-tabela-sistema__cor { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border-radius: 2px; }
 .acesso-tabela-sistema__cor--volume { background: #1a73e8; }
 .acesso-tabela-sistema__cor--chuva { background: #33d6e0; height: 3px; vertical-align: middle; }

@@ -2,7 +2,9 @@
    <canvas data-sp-grafico='{"sistema":"","rotulos":[],"volume":[],"chuva":[],"rotulo_chuva":"","afluente":[],"defluente":[],"arquivo":""}'>
    Volume útil em barras, chuva em linha suave, vazões afluente e defluente em linhas retas.
    Três eixos: vazão (m³/s) e volume (%) à esquerda, chuva (mm) à direita.
-   <button data-sp-baixar="id-do-canvas"> baixa o gráfico em PNG (fundo branco). */
+   <button data-sp-baixar="id-do-canvas"> baixa o gráfico em PNG (fundo branco).
+   <button data-sp-tabela="id-do-canvas"> baixa a tabela do sistema em PNG, no formato do boletim mensal.
+   <button data-sp-copiar="id-do-canvas"> copia a tabela (colar no Word, PowerPoint, Excel...). */
 (function () {
     'use strict';
     if (!window.Chart) return;
@@ -87,17 +89,142 @@
         try { montar(c, JSON.parse(c.getAttribute('data-sp-grafico'))); } catch (e) { /* configuração inválida: ignora */ }
     });
 
+    function baixar(url, nome) {
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = nome + '.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function configuracao(botao, atributo) {
+        var canvas = document.getElementById(botao.getAttribute(atributo));
+        return canvas ? JSON.parse(canvas.getAttribute('data-sp-grafico')) : null;
+    }
+
     document.querySelectorAll('[data-sp-baixar]').forEach(function (b) {
         b.addEventListener('click', function () {
             var canvas = document.getElementById(b.getAttribute('data-sp-baixar'));
             if (!canvas || !canvas._grafico) return;
             var cfg = JSON.parse(canvas.getAttribute('data-sp-grafico'));
-            var a = document.createElement('a');
-            a.href = canvas._grafico.toBase64Image('image/png', 1);
-            a.download = (cfg.arquivo || 'grafico') + '.png';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            baixar(canvas._grafico.toBase64Image('image/png', 1), cfg.arquivo || 'grafico');
+        });
+    });
+
+    // ---------------------------------------------------------------- tabela do boletim mensal
+    // Colunas do boletim: mês, volume útil, chuva acumulada, vazão afluente e vazão defluente.
+    function dadosTabela(cfg) {
+        var chuva = /média/i.test(cfg.rotulo_chuva || '') ? ['Chuva', 'Média', '(mm)'] : ['Chuva', 'Acumulada', '(mm)'];
+        var colunas = [
+            { titulo: ['Ano'] },
+            { titulo: ['Volume', 'Útil (%)'], valores: cfg.volume, casas: 1 },
+            { titulo: chuva, valores: cfg.chuva, casas: 1 },
+            { titulo: ['Vazão', 'Afluente', '(m³/s)'], valores: cfg.afluente, casas: 2 },
+            { titulo: ['Vazão', 'Defluente', '(m³/s)'], valores: cfg.defluente, casas: 2 }
+        ];
+        var linhas = cfg.rotulos.map(function (mes, i) {
+            return [String(mes).replace(" '", '/')].concat(colunas.slice(1).map(function (c) {
+                var v = c.valores[i];
+                return v === null || v === undefined ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: c.casas, maximumFractionDigits: c.casas });
+            }));
+        });
+        return { titulo: String(cfg.sistema).toLocaleUpperCase('pt-BR'), colunas: colunas, linhas: linhas };
+    }
+
+    function desenharTabela(cfg) {
+        var t = dadosTabela(cfg);
+        var ESCALA = 2, L = 1040, H_TITULO = 60, H_CAB = 112, H_LINHA = 58;
+        var larguras = [200, 180, 220, 220, 220];
+        var altura = H_TITULO + H_CAB + H_LINHA * t.linhas.length;
+        var c = document.createElement('canvas');
+        c.width = (L + 2) * ESCALA;
+        c.height = (altura + 2) * ESCALA;
+        var ctx = c.getContext('2d');
+        var FONTE = '"Segoe UI", Arial, sans-serif';
+        ctx.scale(ESCALA, ESCALA);
+        ctx.translate(1, 1);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-1, -1, L + 2, altura + 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#111';
+
+        ctx.font = '700 24px ' + FONTE;
+        ctx.fillText(t.titulo, L / 2, H_TITULO / 2);
+
+        var x = 0;
+        ctx.font = '700 21px ' + FONTE;
+        t.colunas.forEach(function (col, k) {
+            var inicio = H_TITULO + H_CAB / 2 - (col.titulo.length - 1) * 13;
+            col.titulo.forEach(function (parte, n) { ctx.fillText(parte, x + larguras[k] / 2, inicio + n * 26); });
+            x += larguras[k];
+        });
+
+        t.linhas.forEach(function (linha, i) {
+            var y = H_TITULO + H_CAB + H_LINHA * i + H_LINHA / 2;
+            var ultima = i === t.linhas.length - 1; // mês do boletim em destaque
+            ctx.font = (ultima ? '700' : '400') + ' 21px ' + FONTE;
+            var px = 0;
+            linha.forEach(function (texto, k) {
+                ctx.fillText(texto, px + larguras[k] / 2, y);
+                px += larguras[k];
+            });
+        });
+
+        // grade
+        ctx.strokeStyle = '#c9cdd2';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.rect(0, 0, L, altura);
+        [H_TITULO, H_TITULO + H_CAB].forEach(function (y) { ctx.moveTo(0, y); ctx.lineTo(L, y); });
+        for (var i = 1; i < t.linhas.length; i++) {
+            var yl = H_TITULO + H_CAB + H_LINHA * i;
+            ctx.moveTo(0, yl);
+            ctx.lineTo(L, yl);
+        }
+        var xc = 0;
+        for (var k = 0; k < larguras.length - 1; k++) {
+            xc += larguras[k];
+            ctx.moveTo(xc, H_TITULO);
+            ctx.lineTo(xc, altura);
+        }
+        ctx.stroke();
+        return c;
+    }
+
+    document.querySelectorAll('[data-sp-tabela]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var cfg = configuracao(b, 'data-sp-tabela');
+            if (cfg) baixar(desenharTabela(cfg).toDataURL('image/png'), 'tabela_' + (cfg.arquivo || 'sistema'));
+        });
+    });
+
+    function escapar(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    document.querySelectorAll('[data-sp-copiar]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            var cfg = configuracao(b, 'data-sp-copiar');
+            if (!cfg || !navigator.clipboard) return;
+            var t = dadosTabela(cfg);
+            var cabecalho = t.colunas.map(function (c) { return c.titulo.join(' '); });
+            var texto = [t.titulo, cabecalho.join('\t')].concat(t.linhas.map(function (l) { return l.join('\t'); })).join('\n');
+            var celula = 'border:1px solid #c9cdd2;padding:6px 10px;text-align:center';
+            var html = '<table style="border-collapse:collapse;font-family:Arial,sans-serif">' +
+                '<tr><th colspan="' + t.colunas.length + '" style="' + celula + '">' + escapar(t.titulo) + '</th></tr>' +
+                '<tr>' + cabecalho.map(function (c) { return '<th style="' + celula + '">' + escapar(c) + '</th>'; }).join('') + '</tr>' +
+                t.linhas.map(function (l, i) {
+                    var negrito = i === t.linhas.length - 1 ? ';font-weight:bold' : '';
+                    return '<tr>' + l.map(function (v) { return '<td style="' + celula + negrito + '">' + escapar(v) + '</td>'; }).join('') + '</tr>';
+                }).join('') + '</table>';
+            var copia = window.ClipboardItem
+                ? navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([texto], { type: 'text/plain' }) })])
+                : navigator.clipboard.writeText(texto);
+            copia.then(function () {
+                var original = b.innerHTML;
+                b.innerHTML = '<i class="bi bi-check2"></i> Copiada!';
+                setTimeout(function () { b.innerHTML = original; }, 1800);
+            }).catch(function () { /* sem permissão para a área de transferência */ });
         });
     });
 })();

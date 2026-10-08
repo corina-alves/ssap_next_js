@@ -15,7 +15,9 @@ const num = (v: number | null | undefined, casas: number) =>
 
 /**
  * Sistemas produtores — volume útil (barras), chuva e vazões afluente e
- * defluente (linhas), mês a mês, com download em PNG. Séries mensais do SSD.
+ * defluente (linhas), mês a mês. O gráfico e a tabela de cada sistema saem em
+ * PNG (a tabela no formato do boletim mensal) e a tabela também pode ser
+ * copiada. Séries mensais do SSD.
  */
 export default async function SistemasProdutores({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
@@ -99,9 +101,17 @@ export default async function SistemasProdutores({ searchParams }: { searchParam
                     <h2 className="h6 mb-0">Sistema {g.nome}</h2>
                     <small className="text-secondary">{periodo.charAt(0).toUpperCase() + periodo.slice(1)}</small>
                   </div>
-                  <button type="button" className="btn btn-sm btn-outline-secondary" data-sp-baixar={`sp-${g.chave}`}>
-                    <i className="bi bi-download" /> PNG
-                  </button>
+                  <div className="d-flex flex-wrap justify-content-end gap-2">
+                    <button type="button" className="btn btn-sm btn-outline-secondary" data-sp-baixar={`sp-${g.chave}`}>
+                      <i className="bi bi-download" /> Gráfico (PNG)
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" data-sp-tabela={`sp-${g.chave}`}>
+                      <i className="bi bi-table" /> Tabela (PNG)
+                    </button>
+                    <button type="button" className="btn btn-sm btn-outline-secondary" data-sp-copiar={`sp-${g.chave}`}>
+                      <i className="bi bi-clipboard" /> Copiar tabela
+                    </button>
+                  </div>
                 </div>
                 <div className="row g-3 align-items-center">
                   <div className="col-xl-8">
@@ -150,7 +160,8 @@ export default async function SistemasProdutores({ searchParams }: { searchParam
       <p className="small text-secondary mt-3 mb-0">
         Séries mensais do SSD SP Águas: volume útil (%), chuva acumulada no mês (mm) e vazões afluente e defluente médias do mês (m³/s). No
         SIM, a chuva é a média simples da chuva mensal dos demais sistemas da lista. O mês corrente não entra no gráfico porque ainda está
-        incompleto.
+        incompleto. Para o boletim mensal: &quot;Gráfico (PNG)&quot; e &quot;Tabela (PNG)&quot; baixam as imagens de cada sistema; &quot;Copiar tabela&quot;
+        leva a tabela para colar no Word, PowerPoint ou Excel.
       </p>
 
       <ScriptsLegado scripts={['/acesso/vendor/chartjs/chart.umd.min.js', '/acesso/js/sistemas-produtores.js']} />

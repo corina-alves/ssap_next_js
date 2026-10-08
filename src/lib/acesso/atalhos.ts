@@ -65,7 +65,7 @@ export const ATALHOS: Record<string, Atalho[]> = {
     {
       modulo: 'graficos',
       titulo: 'Sistemas produtores — volume, chuva e vazões',
-      descricao: 'Gráfico de cada sistema com os 12 últimos meses completos: volume útil (barras), chuva, vazão afluente e defluente (dados do SSD); baixa em PNG.',
+      descricao: 'Gráfico de cada sistema com os 12 últimos meses completos: volume útil (barras), chuva, vazão afluente e defluente (dados do SSD). Para o boletim mensal: baixa o gráfico e a tabela de cada sistema em PNG e copia a tabela.',
       href: '/acesso/sistemas_produtores?s=alfredo-pisani',
       icone: 'bi-water',
       permissao: 'visualizar_graficos',
