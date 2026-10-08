@@ -344,7 +344,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
             </div>
           </section>
 
-          <section className="salas-section">
+          <section className="mt-5">
             <div className="section-head">
               <div>
                 <h2>Rede de Salas de Situação</h2>
