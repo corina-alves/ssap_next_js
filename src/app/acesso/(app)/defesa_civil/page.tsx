@@ -7,6 +7,7 @@ import limites from '@/conteudo/ugrhi.json';
 import { acl } from '@/lib/auth/acl';
 import { REGIONAIS, regionalDoPonto } from '@/lib/hidrologia/regionais-defesa-civil';
 import {
+  chuvaPorMunicipio,
   coordenadasPostos,
   HORAS_CHUVA,
   hora,
@@ -19,6 +20,7 @@ import {
   textoChuvaWhatsapp,
   textoWhatsapp,
   UGRHIS,
+  type PontoChuva,
   type Posto,
   type Situacao,
 } from '@/lib/hidrologia/situacao-rios';
@@ -39,6 +41,11 @@ const SETAS = { elevacao: ['bi-arrow-up-right', 'Subindo'], reducao: ['bi-arrow-
 
 const nomeUgrhi = (u: number) => (UGRHIS[u] ? `UGRHI ${u} — ${UGRHIS[u]}` : 'Sem UGRHI');
 const pior = (lista: Posto[]): Situacao => lista[0]?.situacao ?? 'normal'; // já vem ordenado por gravidade
+/** Regional da Defesa Civil onde o ponto cai (pela coordenada). */
+const nomeRegionalDoPonto = (lat: number, lng: number) => {
+  const r = regionalDoPonto(lat, lng);
+  return r === null ? '—' : REGIONAIS[r]!.nome;
+};
 const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? '';
 
 type Geometria = { type: string; coordinates: unknown };
@@ -55,9 +62,10 @@ const fmtArquivo = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Pau
  * Defesa Civil — painel de alerta dos rios, córregos e piscinões.
  *   1. Resumo do estado e mapa das regionais da Defesa Civil, com os pontos
  *      monitorados na cor da situação e a contagem por regional.
- *   2. Por UGRHI: mapa (limite, chuva acumulada acima de 10 mm e estações
+ *   2. Os 15 municípios do estado com os maiores acumulados de chuva.
+ *   3. Por UGRHI: mapa (limite, chuva acumulada acima de 10 mm e estações
  *      telemétricas, que vira imagem para o WhatsApp), as mensagens prontas
- *      para copiar e as tabelas dos pontos.
+ *      para copiar e as tabelas dos pontos e da chuva acumulada por posto.
  * Aberto a quem vê o painel de alguma Sala de Situação.
  */
 export default async function DefesaCivil({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -98,6 +106,7 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
 
   const filtro = um(sp.ugrhi);
   const horas = HORAS_CHUVA[Number(um(sp.horas))] ? Number(um(sp.horas)) : 24; // chuva acumulada do mapa
+  const chuvaUgrhi = /^d+$/.test(um(sp.chuva_ugrhi)) && UGRHIS[Number(um(sp.chuva_ugrhi))] ? Number(um(sp.chuva_ugrhi)) : null; // ranking de chuva: estado ou uma UGRHI
   const mostrar =
     filtro === 'todas'
       ? ugrhisComPosto
@@ -110,11 +119,15 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
   const geradoEm = new Date(situacao.gerado_em * 1000);
   const quando = `${fmtDataHora.format(geradoEm)} ${hora(situacao.gerado_em)}`;
 
-  const blocos = await Promise.all(mostrar.map(async (u) => ({ u, lista: porUgrhi.get(u) ?? [], mapa: await mapaUgrhi(u, horas) })));
+  const [blocos, chuvaEstado] = await Promise.all([
+    Promise.all(mostrar.map(async (u) => ({ u, lista: porUgrhi.get(u) ?? [], mapa: await mapaUgrhi(u, horas) }))),
+    chuvaPorMunicipio(horas, chuvaUgrhi),
+  ]);
 
   const parametros = new URLSearchParams();
   if (filtro) parametros.set('ugrhi', filtro);
   if (horas !== 24) parametros.set('horas', String(horas));
+  if (chuvaUgrhi !== null) parametros.set('chuva_ugrhi', String(chuvaUgrhi));
   parametros.set('atualizar', '1');
 
   return (
@@ -219,10 +232,74 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
         </div>
       </section>
 
+      <section className="acesso-card mb-4" id="chuva">
+        <h2 className="acesso-card__titulo">
+          <i className="bi bi-cloud-rain-heavy" /> Chuva — {chuvaEstado.municipios.length || 15} municípios com os maiores acumulados nas últimas {HORAS_CHUVA[horas]}
+        </h2>
+        <form className="row g-2 align-items-end mb-3" method="get" action="/acesso/defesa_civil#chuva">
+          {filtro && <input type="hidden" name="ugrhi" value={filtro} />}
+          {horas !== 24 && <input type="hidden" name="horas" value={horas} />}
+          <div className="col-md-6">
+            <label className="form-label small" htmlFor="chuva_ugrhi">
+              Abrangência
+            </label>
+            <SelectAutoEnvio className="form-select" id="chuva_ugrhi" name="chuva_ugrhi" defaultValue={chuvaUgrhi === null ? '' : String(chuvaUgrhi)}>
+              <option value="">Todo o estado</option>
+              {Object.keys(UGRHIS).map((u) => (
+                <option key={u} value={u}>
+                  {nomeUgrhi(Number(u))}
+                </option>
+              ))}
+            </SelectAutoEnvio>
+          </div>
+        </form>
+        {chuvaEstado.falhou && (
+          <div className="alert alert-warning py-2 small">O SIBH não respondeu agora; a lista usa a última cópia disponível da chuva acumulada.</div>
+        )}
+        {chuvaEstado.municipios.length ? (
+          <div className="table-responsive">
+            <table className="table table-sm align-middle mb-0 dc-tabela">
+              <thead>
+                <tr>
+                  <th className="text-end">#</th>
+                  <th>Município</th>
+                  <th>Regional</th>
+                  <th>UGRHI</th>
+                  <th className="text-end">Chuva (mm)</th>
+                  <th>Posto com o maior acumulado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chuvaEstado.municipios.map((c, i) => (
+                  <tr key={c.cidade}>
+                    <td className="text-end text-secondary">{i + 1}</td>
+                    <td className="fw-semibold">{c.cidade}</td>
+                    <td className="text-nowrap">{nomeRegionalDoPonto(c.lat, c.lng)}</td>
+                    <td>{nomeUgrhi(c.ugrhi)}</td>
+                    <td className="text-end fw-semibold">{m(c.v, 1)}</td>
+                    <td>{c.posto}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mb-0 text-secondary">
+            Nenhum município com chuva registrada nas últimas {HORAS_CHUVA[horas]}
+            {chuvaUgrhi !== null && ` na ${nomeUgrhi(chuvaUgrhi)}`}.
+          </p>
+        )}
+        <p className="small text-secondary mt-2 mb-0">
+          {chuvaUgrhi === null ? 'Todo o estado' : `Só os pluviômetros da ${nomeUgrhi(chuvaUgrhi)}`}. O acumulado do município é o do pluviômetro que mais
+          registrou chuva nele. O período é o escolhido em &quot;Chuva no mapa&quot;, logo abaixo.
+        </p>
+      </section>
+
       <h2 className="h5 mb-2">
         <i className="bi bi-water" /> Situação por UGRHI
       </h2>
       <form className="acesso-card mb-3 row g-2 align-items-end mx-0" method="get">
+        {chuvaUgrhi !== null && <input type="hidden" name="chuva_ugrhi" value={chuvaUgrhi} />}
         <div className="col-md-6">
           <label className="form-label small" htmlFor="ugrhi">
             UGRHI
@@ -284,6 +361,11 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
         const tabelas: [string, Posto[], boolean][] = [];
         if (fora.length) tabelas.push(['Pontos fora do normal', fora, true]);
         if (lista.length) tabelas.push([`Todos os ${lista.length} pontos monitorados`, lista, false]);
+        // Chuva acumulada no período escolhido, do maior para o menor.
+        const periodoChuva = `nas últimas ${HORAS_CHUVA[horas]}`;
+        const tabelasChuva: [string, PontoChuva[], boolean][] = [];
+        if (mapa.chuva.length) tabelasChuva.push([`Chuva acima de ${m(LIMITE_CHUVA_MM, 0)} mm ${periodoChuva} — ${mapa.chuva.length} ${mapa.chuva.length === 1 ? 'posto' : 'postos'}`, mapa.chuva, true]);
+        if (mapa.chuva_todos.length) tabelasChuva.push([`Chuva ${periodoChuva} — ${mapa.chuva_todos.length === 1 ? 'o único posto pluviométrico' : `todos os ${mapa.chuva_todos.length} postos pluviométricos`} com leitura`, mapa.chuva_todos, false]);
 
         return (
           <section key={u} className={`acesso-card mb-3 dc-ugrhi dc-ugrhi--${pior(lista)}`}>
@@ -454,6 +536,36 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
                             </td>
                           ))}
                           <td className="text-end">{p.acima !== null ? `+${m(p.acima, 3)} m` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ))}
+
+            {tabelasChuva.map(([titulo, linhas, aberta]) => (
+              <details key={titulo} className="dc-detalhes" open={aberta}>
+                <summary>{titulo}</summary>
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0 dc-tabela">
+                    <thead>
+                      <tr>
+                        <th>Posto</th>
+                        <th>Município</th>
+                        <th>Regional</th>
+                        <th className="text-end">Chuva (mm)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {linhas.map((c) => (
+                        <tr key={c.id}>
+                          <td>
+                            <strong>{c.p}</strong> {c.n}
+                          </td>
+                          <td>{c.c}</td>
+                          <td className="text-nowrap">{nomeRegionalDoPonto(c.lat, c.lng)}</td>
+                          <td className="text-end fw-semibold">{m(c.v, 1)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -398,6 +398,31 @@ export async function mapaUgrhi(ugrhi: number, horasPedidas: number) {
   };
 }
 
+export type ChuvaMunicipio = { cidade: string; ugrhi: number; v: number; posto: string; lat: number; lng: number };
+
+/**
+ * Municípios com os maiores acumulados de chuva nas últimas `horas` — do estado
+ * todo ou só dos pluviômetros de uma UGRHI.
+ * O valor do município é o do posto que mais registrou chuva nele (`posto`).
+ */
+export async function chuvaPorMunicipio(horasPedidas: number, ugrhi: number | null = null, max = 15) {
+  const horas = HORAS_CHUVA[horasPedidas] ? horasPedidas : 24;
+  const falhas: string[] = [];
+  const [plu, acum] = await Promise.all([
+    cacheOu('mapa_estacoes_plu', 86_400, () => estacoesMapa(2), falhas, {} as Record<string, EstacaoMapa>),
+    cacheOu(`mapa_chuva_${horas}h`, CACHE_SEGUNDOS, () => chuvaAcumulada(horas), falhas, {} as Record<string, number>),
+  ]);
+  const porCidade = new Map<string, ChuvaMunicipio>();
+  for (const [id, v] of Object.entries(acum)) {
+    const e = plu[id];
+    if (!e || e.c === '' || (ugrhi !== null && e.u !== ugrhi)) continue;
+    const atual = porCidade.get(e.c);
+    if (!atual || v > atual.v) porCidade.set(e.c, { cidade: e.c, ugrhi: e.u, v, posto: `${e.p} ${e.n}`, lat: e.lat, lng: e.lng });
+  }
+  const municipios = [...porCidade.values()].filter((c) => c.v > 0).sort((a, b) => b.v - a.v || a.cidade.localeCompare(b.cidade, 'pt-BR'));
+  return { horas, municipios: municipios.slice(0, max), falhou: falhas.length > 0 };
+}
+
 /** Bloco da mensagem de WhatsApp com os postos de chuva do mapa (os `max` maiores). */
 export function textoChuvaWhatsapp(chuva: PontoChuva[], horas: number, max = 10): string {
   const periodo = HORAS_CHUVA[horas] ?? `${horas} horas`;
