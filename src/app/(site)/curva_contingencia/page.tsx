@@ -19,9 +19,9 @@ const data = (v: string | string[] | undefined, padrao: string) => {
 const pct = (v: number | null | undefined) =>
   v == null ? '--' : v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function Cartao({ rotulo, valor, meta, icone }: { rotulo: string; valor: number | null | undefined; meta: string; icone: string }) {
+function Cartao({ id, rotulo, valor, meta, icone }: { id: string; rotulo: string; valor: number | null | undefined; meta: string; icone: string }) {
   return (
-    <div className="sssp-stat-card sssp-stat-card--blue">
+    <div id={id} className="sssp-stat-card sssp-stat-card--blue">
       <div className="sssp-stat-card__icon">
         <i className={`bi ${icone}`} />
       </div>
@@ -76,20 +76,23 @@ export default async function CurvaContingencia({ searchParams }: { searchParams
         </Secao>
 
         <div className="sssp-stats-grid mb-4" aria-label="Resumo da curva de contingência">
-          <Cartao rotulo="SIM" valor={s?.valor} icone="bi-water" meta={s ? `Observado em ${dataBr(s.data)} · Dado: Sabesp` : 'Sem dado no período'} />
+          <Cartao id="cardObsSimWrap" rotulo="SIM" valor={s?.valor} icone="bi-water" meta={s ? `Observado em ${dataBr(s.data)}` : 'Sem dado no período'} />
           <Cartao
+            id="cardObsCantWrap"
             rotulo="Cantareira"
             valor={c?.valor}
             icone="bi-droplet-half"
             meta={c ? `Observado em ${dataBr(c.data)} · Dado: ${c.fonte === 'ANA' ? 'ANA' : 'Sabesp'}` : 'Sem dado no período'}
           />
           <Cartao
+            id="cardMetaSimWrap"
             rotulo="SIM"
             valor={s?.curva}
             icone="bi-bullseye"
             meta={s?.curva != null ? `Curva de contingência do mesmo dia: ${dataBr(s.data)}` : semReferencia(s)}
           />
           <Cartao
+            id="cardMetaCantWrap"
             rotulo="Cantareira"
             valor={c?.curva}
             icone="bi-bezier2"
@@ -98,6 +101,7 @@ export default async function CurvaContingencia({ searchParams }: { searchParams
         </div>
 
         <Secao
+          id="projecao-volume"
           titulo="Projeção de Volume — SIM e Cantareira"
           subtitulo="Curvas de contingência e volumes observados no período selecionado."
           icone="bi-graph-up"

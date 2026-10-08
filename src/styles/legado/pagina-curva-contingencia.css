@@ -39,8 +39,8 @@
 .sssp-stat-card:nth-child(4)::before { content: "REFERÊNCIA"; }
 
 /* Cor de cada card = cor da linha no gráfico (ver curva_contingencia.php). */
-#cardObsSimWrap  { --linha: #111827; }  /* SIM observado */
-#cardObsCantWrap { --linha: #1d237a; }  /* Cantareira observado */
+#cardObsSimWrap  { --linha: #0047d6; }  /* SIM observado */
+#cardObsCantWrap { --linha: #00953f; }  /* Cantareira observado */
 #cardMetaSimWrap { --linha: #00a8ff; }  /* Curva SIM */
 #cardMetaCantWrap{ --linha: #2ecc71; }  /* Curva Cantareira */
 .sssp-stat-card[id$="Wrap"] {

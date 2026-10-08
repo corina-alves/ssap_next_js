@@ -176,3 +176,12 @@ g:focus-visible > .mapa-area {
 .public-page .rsv-estagios .cor.is-emergencia { background: var(--est-emergencia); }
 .public-page .pesc-estagio.e4 { background: var(--est-emergencia); }
 .public-page :is(.estagio.e4, .estagio-mini.e4, .emergencia) { --card-accent: var(--est-emergencia); }
+
+/* Curva de Contingência: topo azul na seção do gráfico. */
+.public-page #projecao-volume .sssp-section-card__head {
+  background: #1a73e8;
+  border-bottom: 0;
+}
+.public-page #projecao-volume .sssp-section-card__title h2 { color: #fff; }
+.public-page #projecao-volume .sssp-section-card__title p { color: rgba(255, 255, 255, 0.85); }
+.public-page #projecao-volume .sssp-section-card__title > span { background: rgba(255, 255, 255, 0.16); color: #fff; }

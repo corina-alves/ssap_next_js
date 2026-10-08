@@ -749,9 +749,9 @@ export function GraficoCurvaContingencia({
         data: {
           datasets: [
             serie('SIM', 'Curva de Contingência', curvaSim.map((p) => ({ x: emMs(p.data), y: p.valor })), '#00a8ff', 3, ultimoSim, 1),
-            serie('SIM', 'Observado', obsSim.map((o) => ({ x: emMs(o.data), y: o.sim! })), '#111827', 2.5, ultimoSim, 0),
+            serie('SIM', 'Observado', obsSim.map((o) => ({ x: emMs(o.data), y: o.sim! })), '#0047d6', 2.5, ultimoSim, 0),
             serie('Cantareira', 'Curva de Contingência', curvaCantareira.map((p) => ({ x: emMs(p.data), y: p.valor })), '#2ecc71', 3, ultimoCant, 1),
-            serie('Cantareira', fonteCantareira ? `Observado (${fonteCantareira.split(';')[0]})` : 'Observado', obsCant.map((o) => ({ x: emMs(o.data), y: o.cantareira! })), '#1d237a', 2.5, ultimoCant, 0),
+            serie('Cantareira', fonteCantareira ? `Observado (${fonteCantareira.split(';')[0]})` : 'Observado', obsCant.map((o) => ({ x: emMs(o.data), y: o.cantareira! })), '#00953f', 2.5, ultimoCant, 0),
           ],
         },
         options: {
