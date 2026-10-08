@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'Sala de Situação Alfredo Pisani', template: '%s · Sala de Situação' },
+  title: { default: 'Sala de Situação Alfredo Pisani', template: '%s · Sala de Situação Alfredo Pisani' },
   description: 'Monitoramento hidrológico do Estado de São Paulo — SP Águas.',
 };
 
