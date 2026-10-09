@@ -1,4 +1,5 @@
 import { listarPublicos } from '@/lib/documentos';
+import { enderecoPublico } from '@/lib/requisicao';
 
 /**
  * Documentos públicos, em JSON.
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
   }
 
   const { itens, total } = await listarPublicos({ sala, categoria }, limite);
-  const base = new URL('/documentos/arquivo/', req.url);
+  const base = new URL('/documentos/arquivo/', enderecoPublico(req));
   return Response.json(
     {
       ok: true,

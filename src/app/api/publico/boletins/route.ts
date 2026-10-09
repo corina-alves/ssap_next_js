@@ -1,4 +1,5 @@
 import { listarPublicados } from '@/lib/publico';
+import { enderecoPublico } from '@/lib/requisicao';
 
 /**
  * Boletins publicados, em JSON (para outros sites e painéis).
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
   if (erros.length) return Response.json({ ok: false, erro: erros.join('; ') }, { status: 400 });
 
   const { itens, total } = await listarPublicados({ sala, tipo, de, ate }, limite, (pagina - 1) * limite);
-  const base = new URL('/boletins/arquivo/', req.url);
+  const base = new URL('/boletins/arquivo/', enderecoPublico(req));
   return Response.json(
     {
       ok: true,

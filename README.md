@@ -59,8 +59,11 @@ As demais opções (`APP_URL`, `STORAGE_DIR`, `CACHE_DIR`, proxy) estão em `.en
 
 ## Docker
 
+O passo a passo completo (instalação, backup, restauração, atualização, produção com HTTPS e desenvolvimento) está em **[DOCKER.md](DOCKER.md)**.
+
 ```bash
-cp .env.docker.example .env.docker      # troque as senhas
+cp .env.docker.example .env.docker      # endereço público e opções
+# senhas do banco em secrets/postgres_password.txt e secrets/app_db_password.txt (veja DOCKER.md)
 docker compose up -d --build
 docker compose run --rm ferramentas npm run admin:criar
 ```
@@ -68,15 +71,19 @@ docker compose run --rm ferramentas npm run admin:criar
 | Serviço | O que é |
 |---|---|
 | `db` | PostgreSQL 18. Na primeira subida, `db/docker-init/` cria o usuário da aplicação sem superusuário |
+| `permissoes` | Ajusta o dono dos volumes de arquivos e de cache e termina |
 | `ferramentas` | Aplica as migrações e termina; também roda `admin:criar` e `integracoes:testar` |
-| `app` | Next.js standalone, com usuário sem privilégios e checagem de saúde em `/api/saude`. Fica em `127.0.0.1:3000` |
+| `app` | Next.js standalone, com usuário sem privilégios, sistema de arquivos somente leitura e checagem de saúde em `/api/saude`. Fica em `127.0.0.1:3000` |
+| `proxy` | Opcional (`--profile proxy`): nginx com HTTPS na frente do site |
+| `backup` / `restaurar` | Sob demanda: backup e restauração do banco e dos arquivos em `./backups` |
 
 - **Volumes:**
   - `banco`: o PostgreSQL. Faça backup.
   - `arquivos`: PDFs e documentos. Faça backup.
   - `cache`: descartável.
-- **Publicação:** coloque um proxy reverso com HTTPS (nginx, IIS, Traefik) na frente de `127.0.0.1:3000`, com `TRUST_PROXY=true` e `APP_URL` apontando para o endereço público.
-- **Validação:** o build standalone e o usuário sem superusuário foram testados fora do Docker. A imagem em si ainda precisa ser construída numa máquina com Docker.
+- **Senhas:** as do banco ficam em arquivos de segredo (`secrets/`), fora do repositório e das variáveis de ambiente.
+- **Publicação:** use o perfil `proxy` ou coloque o proxy reverso da instituição (nginx, IIS) na frente de `127.0.0.1:3000`, com `TRUST_PROXY=true` e `APP_URL` apontando para o endereço público. Em produção o login exige HTTPS.
+- **Desenvolvimento:** `docker compose -f compose.yaml -f compose.dev.yaml up --build`.
 
 ## Estrutura
 

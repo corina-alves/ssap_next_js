@@ -11,6 +11,9 @@ export function pool(): pg.Pool {
       max: 10,
       idleTimeoutMillis: 30_000,
     });
+    // Conexão ociosa derrubada (banco reiniciado, rede): o pool descarta e abre outra
+    // na próxima consulta. Sem este tratador, o erro viraria exceção não capturada.
+    global_.__ssapPool.on('error', (e) => console.error('Conexão ociosa com o banco encerrada:', e.message));
   }
   return global_.__ssapPool;
 }

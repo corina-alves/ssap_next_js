@@ -9,6 +9,11 @@ next-env.d.ts
 .env.*.local
 .env.docker
 
+# Docker: senhas, certificados e backups ficam fora do repositório
+secrets/
+backups/
+deploy/certs/
+
 # Cache das integrações externas (descartável)
 .cache/
 
