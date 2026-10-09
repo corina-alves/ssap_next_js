@@ -20,7 +20,7 @@ type Leaflet = any;
 const SCRIPT = '/acesso/vendor/leaflet/leaflet.js';
 
 /** Carrega o Leaflet (o mesmo da área /acesso) uma única vez. */
-function carregarLeaflet(): Promise<Leaflet | null> {
+export function carregarLeaflet(): Promise<Leaflet | null> {
   const w = window as unknown as { L?: Leaflet };
   if (w.L) return Promise.resolve(w.L);
   return new Promise((ok) => {

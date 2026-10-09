@@ -39,6 +39,14 @@ const SUMARIO_RIBEIRA: Atalho = {
 export const ATALHOS: Record<string, Atalho[]> = {
   'alfredo-pisani': [
     {
+      modulo: 'boletins',
+      titulo: 'Boletim Diário — Sala de Situação Alfredo Pisani',
+      descricao: 'Chuva 24 h com interpolação por município, fluviometria, extravasamentos, sistemas produtores e PPDC; preencha textos e imagens, use "Gerar PDF" e cadastre o PDF como boletim.',
+      href: '/acesso/boletim_diario',
+      icone: 'bi-file-earmark-bar-graph',
+      permissao: 'criar_boletim',
+    },
+    {
       modulo: 'graficos',
       titulo: 'Projeções do volume útil × GDN',
       descricao: 'Envie os CSVs das simulações do SSD Sabesp (QN × retirada na ESI) e gere os gráficos com o limite da Faixa 2 e a retomada da GDN — todos os sistemas.',

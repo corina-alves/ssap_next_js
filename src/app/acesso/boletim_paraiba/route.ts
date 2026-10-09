@@ -18,7 +18,7 @@ export async function GET() {
   return paginaAvulsa({
     titulo: 'Boletim Diário — Sala de Situação Vale do Paraíba',
     pasta: 'boletim_paraiba',
-    versao: '20261007b',
+    versao: '20261009a',
     scripts: ['/acesso/vendor/chartjs/chart.umd.min.js'],
     barra: `    <a class="barra__voltar" href="/acesso/boletins?sala=${sala.id}">&larr; Boletins Vale do Paraíba</a>
     <button type="button" id="btn-atualizar" class="primario">Atualizar dados das APIs</button>

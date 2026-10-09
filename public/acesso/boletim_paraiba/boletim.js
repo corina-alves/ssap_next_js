@@ -64,10 +64,12 @@
 
     // ------------------------------------------------------------ montagem
     function montar() {
+        paginaMapa();
         paginaResolucao();
         document.querySelectorAll('[data-campo="data_curta"]').forEach(function (e) { e.textContent = dataBR(dados.gerado_em.slice(0, 10)); });
         document.querySelectorAll('[data-campo="data_hora"]').forEach(function (e) { e.textContent = dataBR(dados.gerado_em); });
         chuva();
+        mapa();
         previsao();
         pontos();
         reservatorios();
@@ -114,6 +116,89 @@
             ]));
         });
         tab.appendChild(corpo);
+    }
+
+    /** Página "1.1": mapa da UGRHI 2. Criada uma vez, depois da página da chuva. */
+    function paginaMapa() {
+        if (document.getElementById('mapa-ugrhi')) return;
+        var anterior = document.getElementById('tab-chuva').closest('.pagina');
+        var pag = el('section', { classe: 'pagina' }, [
+            anterior.querySelector('.cab').cloneNode(true),
+            el('h2', { contenteditable: 'true', 'data-k': 'sec_mapa', texto: '1.1 MAPA DA UGRHI 2 — PARAÍBA DO SUL: CHUVA EM 24 HORAS E PONTOS DE MONITORAMENTO' }),
+            el('p', { classe: 'texto', contenteditable: 'true', 'data-k': 'txt_mapa', 'data-auto': 'txt_mapa' }),
+            el('div', { classe: 'mapa', id: 'mapa-ugrhi' }),
+            el('div', { classe: 'mapa-legenda', id: 'mapa-legenda-chuva' }),
+            el('div', { classe: 'mapa-legenda', id: 'mapa-legenda-pontos' }),
+            el('p', { classe: 'nota', contenteditable: 'true', 'data-k': 'nota_mapa', texto: 'Limite da UGRHI 2: DataGEO. Posição dos postos: cadastro do SIBH; posto sem coordenada não aparece. O número ao lado do posto é o acumulado em 24 h (mm), mostrado nos cinco maiores acima de 10 mm. Os municípios servem de referência de localização.' }),
+            el('div', { classe: 'rodape', contenteditable: 'true', 'data-k': 'rodape_mapa', texto: 'Fonte: SIBH — SP Águas; DataGEO.' })
+        ]);
+        anterior.parentNode.insertBefore(pag, anterior.nextSibling);
+    }
+
+    function svg(tag, attrs, filhos) {
+        var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+        (filhos || []).forEach(function (f) { if (f) e.appendChild(typeof f === 'string' ? document.createTextNode(f) : f); });
+        return e;
+    }
+    function classeChuva(v) { return v > 50 ? 4 : v > 25 ? 3 : v > 10 ? 2 : v > 0 ? 1 : 0; }
+    function losango(x, y, r, classe) {
+        return svg('path', { d: 'M' + x + ',' + (y - r) + 'L' + (x + r) + ',' + y + 'L' + x + ',' + (y + r) + 'L' + (x - r) + ',' + y + 'Z', 'class': 'mapa-ponto mapa-ponto--' + classe });
+    }
+
+    function mapa() {
+        var m = dados.mapa, box = limpar('mapa-ugrhi');
+        var legChuva = limpar('mapa-legenda-chuva'), legPontos = limpar('mapa-legenda-pontos');
+        var postos = dados.chuva.postos, pt = dados.pontos;
+        auto('txt_mapa', 'Localização, na UGRHI 2, ' + (postos.length ? 'dos ' + postos.length + ' postos pluviométricos com leitura nas últimas 24 horas' : 'dos postos pluviométricos (sem leitura no momento)')
+            + ' e ' + (m.pontos.length ? 'dos ' + m.pontos.length + ' pontos de monitoramento com cotas de referência' : 'dos pontos de monitoramento (sem leitura no momento)')
+            + ', coloridos pelo acumulado de chuva e pela situação do nível.');
+        var todos = [].concat.apply([], m.contorno);
+        if (!todos.length) { box.appendChild(el('div', { classe: 'mapa-vazio', texto: 'Limite da UGRHI indisponível.' })); return; }
+
+        // projeção plana, corrigida pela latitude média da bacia
+        var lons = todos.map(function (p) { return p[0]; }), lats = todos.map(function (p) { return p[1]; });
+        var lonMin = Math.min.apply(null, lons), lonMax = Math.max.apply(null, lons), latMin = Math.min.apply(null, lats), latMax = Math.max.apply(null, lats);
+        var L = 700, borda = 14, k = Math.cos((latMin + latMax) / 2 * Math.PI / 180);
+        var esc = (L - 2 * borda) / ((lonMax - lonMin) * k), A = Math.round((latMax - latMin) * esc + 2 * borda);
+        var X = function (lon) { return Math.round((borda + (lon - lonMin) * k * esc) * 10) / 10; };
+        var Y = function (lat) { return Math.round((borda + (latMax - lat) * esc) * 10) / 10; };
+        var dentro = function (lat, lon) { return lat >= latMin && lat <= latMax && lon >= lonMin && lon <= lonMax; };
+
+        var raiz = svg('svg', { viewBox: '0 0 ' + L + ' ' + A, role: 'img', 'aria-label': 'Mapa da UGRHI 2 — Paraíba do Sul, com chuva acumulada em 24 horas e pontos de monitoramento' });
+        raiz.appendChild(svg('path', { 'class': 'mapa-limite', 'fill-rule': 'evenodd', d: m.contorno.map(function (anel) {
+            return 'M' + anel.map(function (p) { return X(p[0]) + ',' + Y(p[1]); }).join('L') + 'Z';
+        }).join('') }));
+        m.municipios.forEach(function (c) {
+            raiz.appendChild(svg('circle', { 'class': 'mapa-cidade', cx: X(c.lon), cy: Y(c.lat), r: 1.6 }));
+            raiz.appendChild(svg('text', { 'class': 'mapa-rotulo', x: X(c.lon) + 4, y: Y(c.lat) - 4 }, [c.nome]));
+        });
+        // chuva: do menor para o maior, para o maior acumulado ficar por cima
+        postos.slice().reverse().forEach(function (p) {
+            if (!dentro(p.lat, p.lng)) return;
+            raiz.appendChild(svg('circle', { 'class': 'mapa-chuva mapa-chuva--' + classeChuva(p.v), cx: X(p.lng), cy: Y(p.lat), r: 4.5 }, [
+                svg('title', {}, [p.p + ' — ' + p.n + (p.c ? ' (' + p.c + ')' : '') + ': ' + n(p.v, 1) + ' mm'])
+            ]));
+        });
+        ORDEM_SITUACAO.slice().reverse().forEach(function (s) { // o mais grave por cima
+            m.pontos.filter(function (p) { return p.situacao === s && dentro(p.lat, p.lng); }).forEach(function (p) {
+                var marca = losango(X(p.lng), Y(p.lat), 5.5, s);
+                marca.appendChild(svg('title', {}, [p.prefixo + ' — ' + p.nome + (p.cidade ? ' (' + p.cidade + ')' : '') + ': ' + pt.situacoes[s]]));
+                raiz.appendChild(marca);
+            });
+        });
+        postos.filter(function (p) { return p.v > 10 && dentro(p.lat, p.lng); }).slice(0, 5).forEach(function (p) {
+            raiz.appendChild(svg('text', { 'class': 'mapa-valor', x: X(p.lng) + 6, y: Y(p.lat) + 3 }, [n(p.v, 1)]));
+        });
+        box.appendChild(raiz);
+
+        var item = function (marca, texto) { return el('span', {}, [svg('svg', { viewBox: '0 0 12 12', 'aria-hidden': 'true' }, [marca]), texto]); };
+        legChuva.appendChild(el('strong', { texto: 'Chuva em 24 h (mm):' }));
+        ['sem chuva', 'até 10', '10 a 25', '25 a 50', 'acima de 50'].forEach(function (t, i) {
+            legChuva.appendChild(item(svg('circle', { 'class': 'mapa-chuva mapa-chuva--' + i, cx: 6, cy: 6, r: 4.5 }), t));
+        });
+        legPontos.appendChild(el('strong', { texto: 'Pontos de monitoramento:' }));
+        ORDEM_SITUACAO.slice().reverse().forEach(function (s) { legPontos.appendChild(item(losango(6, 6, 5.5, s), pt.situacoes[s])); });
     }
 
     function previsao() {

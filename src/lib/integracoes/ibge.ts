@@ -63,3 +63,43 @@ export async function contornoSP(): Promise<Dado<Contorno>> {
   );
   return comoDado(FONTE, l);
 }
+
+const URL_MALHA =
+  'https://servicodados.ibge.gov.br/api/v3/malhas/estados/35?formato=application/vnd.geo%2Bjson&qualidade=minima&intrarregiao=municipio';
+
+/** Limite de um município: código do IBGE e anéis [lon, lat]. */
+export type MalhaMunicipio = { codigo: number; aneis: [number, number][][] };
+
+/** Malha dos municípios de SP (IBGE, qualidade mínima), para mapas por município. Cache de 30 dias. */
+export async function malhaMunicipiosSP(): Promise<Dado<MalhaMunicipio[]>> {
+  const ponto = z.tuple([z.number(), z.number()]);
+  const l = await lembrar(
+    'ibge',
+    'malha-municipios:35',
+    TTL.cadastro,
+    async () => {
+      const r = z
+        .object({
+          features: z
+            .array(
+              z.object({
+                properties: z.looseObject({ codarea: z.string() }),
+                geometry: z.discriminatedUnion('type', [
+                  z.object({ type: z.literal('Polygon'), coordinates: z.array(z.array(ponto)) }),
+                  z.object({ type: z.literal('MultiPolygon'), coordinates: z.array(z.array(z.array(ponto))) }),
+                ]),
+              }),
+            )
+            .min(600),
+        })
+        .safeParse(await buscarJson(URL_MALHA, { timeoutMs: 30_000 }));
+      if (!r.success) throw new Error('malha de municípios do IBGE em formato inesperado');
+      return r.data.features.map((f) => ({
+        codigo: Number(f.properties.codarea),
+        aneis: (f.geometry.type === 'Polygon' ? f.geometry.coordinates : f.geometry.coordinates.flat()) as [number, number][][],
+      }));
+    },
+    { validadeMaxSeg: 365 * 24 * 60 * 60 },
+  );
+  return comoDado(FONTE, l);
+}

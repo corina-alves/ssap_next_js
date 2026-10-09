@@ -41,6 +41,7 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       { source: '/previsao-reservatorios.php', destination: '/previsao-reservatorios', permanent: true },
+      { source: '/painel/index.php', destination: '/painel', permanent: true },
       // Notas informativas conjuntas: em vez de página, abrem o PDF assinado.
       { source: '/nota_informativa_conjunta', destination: '/legado/nota_tecnica_arsesp_spaguas/SEI_0100243788_Informacao.pdf', permanent: false },
       { source: '/nota_informativa_conjunta2', destination: '/legado/nota_tecnica_arsesp_spaguas/Nota_Informativa_Conjunta2026-2027.pdf', permanent: false },

@@ -125,10 +125,10 @@ const umaCasa = (v: unknown, suf = '') => num(v, 1, suf);
 
 // ------------------------------------------------------------ componente base
 
-type Montar = (l: Libs) => ChartConfiguration;
+export type Montar = (l: Libs) => ChartConfiguration;
 
 /** <canvas> com o gráfico; refeito quando `chave` muda. */
-function Canvas({ montar, chave, rotulo, sssp = true, id, className }: { montar: Montar; chave: string; rotulo: string; sssp?: boolean; id?: string; className?: string }) {
+export function Canvas({ montar, chave, rotulo, sssp = true, id, className }: { montar: Montar; chave: string; rotulo: string; sssp?: boolean; id?: string; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const montarRef = useRef(montar);
   montarRef.current = montar;

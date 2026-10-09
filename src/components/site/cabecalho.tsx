@@ -9,7 +9,7 @@ import { useEffect } from 'react';
  * PHP (Bootstrap 5 navbar + dropdowns), com os endereços do Next.
  */
 
-type Item = { href: string; rotulo: string; icone: string };
+type Item = { href: string; rotulo: string; icone: string; novaAba?: boolean };
 type Grupo = { rotulo: string; icone: string; cabecalho: string; itens: (Item | 'divisor')[]; ativos: string[] };
 
 const SIMPLES: (Item & { ativos: string[] })[] = [
@@ -31,6 +31,9 @@ const GRUPOS: Grupo[] = [
       { href: '/evolucao-sim-cant', rotulo: 'Evolução Histórica', icone: 'bi-clock-history' },
       { href: '/previsao', rotulo: 'Previsão para os Municípios', icone: 'bi-cloud-sun' },
       { href: '/previsao-reservatorios', rotulo: 'Previsão para os Sistemas Produtores', icone: 'bi-cloud-rain-heavy' },
+      'divisor',
+      // painel de parede: tela própria, sem o menu do site
+      { href: '/painel', rotulo: 'Painel de Situação Hídrica', icone: 'bi-speedometer2', novaAba: true },
     ],
   },
   {
@@ -138,7 +141,7 @@ export function Cabecalho() {
                       </li>
                     ) : (
                       <li key={i.href}>
-                        <Link className="dropdown-item" href={i.href}>
+                        <Link className="dropdown-item" href={i.href} {...(i.novaAba ? { target: '_blank', rel: 'noopener' } : {})}>
                           <i className={`bi ${i.icone}`} />
                           <span>{i.rotulo}</span>
                         </Link>

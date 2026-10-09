@@ -1,4 +1,5 @@
-import { mapaUgrhi, SITUACOES, situacaoRios, UGRHIS, type Situacao } from '../hidrologia/situacao-rios';
+import limites from '../../conteudo/ugrhi.json';
+import { coordenadasPostos, mapaUgrhi, SITUACOES, situacaoRios, UGRHIS, type Situacao } from '../hidrologia/situacao-rios';
 import { dataSar } from '../integracoes/ana';
 import { lembrar, TTL } from '../integracoes/cache';
 import { hojeSp, somarDias, ttlPorData } from '../integracoes/comum';
@@ -8,6 +9,7 @@ import { buscarJson } from '../integracoes/http';
  * Dados do Boletim Diário Vale do Paraíba, UGRHI 2 (porte de
  * acesso/boletim_paraiba/dados.php e config.php):
  *   - chuva acumulada em 24 h nos pluviômetros (SIBH);
+ *   - mapa da UGRHI: limite, pluviômetros e pontos de monitoramento;
  *   - previsão de chuva 24/48/72 h nos municípios (Open-Meteo);
  *   - pontos de monitoramento fora do normal (cotas de alerta do SIBH);
  *   - reservatórios do SIN na bacia (SAR/ANA): último dia e 30 dias para os gráficos;
@@ -35,6 +37,12 @@ const MUNICIPIOS = [
   { nome: 'Cruzeiro', lat: -22.576, lon: -44.963 },
   { nome: 'Bananal', lat: -22.684, lon: -44.322 },
 ];
+
+/** Anéis ([lon, lat]) do limite da UGRHI — camada LimiteUGRHI do DataGEO. */
+function contornoUgrhi(u: number): number[][][] {
+  const f = (limites as { features: { properties: { codigo: number }; geometry: { coordinates: number[][][][] } }[] }).features.find((x) => Number(x.properties.codigo) === u);
+  return f ? f.geometry.coordinates.flat() : [];
+}
 
 // Reservatórios do SIN na bacia (SAR/ANA, bacia 90), pelo nome que o SAR usa.
 // Grupos na ordem da tabela; o destaque (UHE Jaguari) sai em quadro próprio.
@@ -195,9 +203,10 @@ export async function dadosParaiba(atualizar = false) {
   const hoje = hojeSp();
   const datas = Array.from({ length: DIAS_GRAFICO + 1 }, (_, i) => somarDias(hoje, i - DIAS_GRAFICO));
 
-  const [situacao, mapa, previsao, dias] = await Promise.all([
+  const [situacao, mapa, coordenadas, previsao, dias] = await Promise.all([
     situacaoRios(atualizar),
     mapaUgrhi(UGRHI, 24),
+    coordenadasPostos(),
     previsaoMunicipios().catch(() => [] as PrevisaoPonto[]),
     Promise.all(datas.map((d) => sinDoDia(d, 90).catch(() => null))),
   ]);
@@ -259,6 +268,15 @@ export async function dadosParaiba(atualizar = false) {
     },
     previsao,
     pontos: { contagem, total: pontos.length, fora: pontos.filter((p) => p.situacao !== 'normal'), situacoes: SITUACOES },
+    mapa: {
+      contorno: contornoUgrhi(UGRHI),
+      municipios: MUNICIPIOS,
+      // pontos com cota de referência; sem coordenada no cadastro do SIBH, o ponto não entra no mapa
+      pontos: pontos.flatMap((p) => {
+        const c = coordenadas[p.id];
+        return c ? [{ id: p.id, prefixo: p.prefixo, nome: p.nome, cidade: p.cidade, situacao: p.situacao, lat: c.lat, lng: c.lng }] : [];
+      }),
+    },
     reservatorios: { data: ultimaData, destaque: DESTAQUE, lista, series },
     resolucao: situacaoResolucao(ultimo),
     falhas: [...new Set(falhas)],
