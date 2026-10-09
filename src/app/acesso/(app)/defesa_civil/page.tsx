@@ -24,6 +24,7 @@ import {
   type Posto,
   type Situacao,
 } from '@/lib/hidrologia/situacao-rios';
+import { Comunicado } from './comunicado';
 import { MapaRegionais, type PostoMapa, type RegionalMapa } from './mapa-regionais';
 
 export const metadata: Metadata = { title: 'Defesa Civil' };
@@ -429,7 +430,7 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
                   </li>
                   <li className="nav-item" role="presentation">
                     <button className="nav-link" type="button" role="tab" data-bs-toggle="tab" data-bs-target={`#aba-texto-${u}`} aria-controls={`aba-texto-${u}`} aria-selected="false">
-                      <i className="bi bi-file-text" /> Texto formal
+                      <i className="bi bi-megaphone" /> Comunicado
                     </button>
                   </li>
                 </ul>
@@ -457,18 +458,15 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
                     </div>
                   </div>
                   <div className="tab-pane fade" id={`aba-texto-${u}`} role="tabpanel">
-                    <label className="form-label small text-secondary" htmlFor={`texto-${u}`}>
-                      Texto corrido, para e-mail ou ofício.
-                    </label>
-                    <textarea className="form-control dc-texto" id={`texto-${u}`} rows={Math.min(22, 6 + 2 * fora.length)} defaultValue={texto(lista)} />
-                    <div className="mt-2">
-                      <button type="button" className="btn btn-sm btn-primary" data-copiar={`texto-${u}`}>
-                        <i className="bi bi-clipboard" /> Copiar texto
-                      </button>
-                      <span className="small text-success ms-2" data-copiado-de={`texto-${u}`} hidden>
-                        Copiado!
-                      </span>
-                    </div>
+                    <p className="small text-secondary mb-2">
+                      Texto corrido, para e-mail ou ofício. Clique para corrigir; ao copiar, o negrito vai junto.
+                    </p>
+                    <Comunicado
+                      key={situacao.gerado_em}
+                      titulo={`Situação dos rios e córregos — ${nomeUgrhi(u)}`}
+                      quando={`Dados de ${quando}`}
+                      texto={texto(lista, (t) => `**${t}**`)}
+                    />
                   </div>
                 </div>
               </div>

@@ -409,3 +409,15 @@ a.acesso-atalho:hover { border-color: var(--ac-azul); background: #f5f9fc; }
 .acesso-subir:hover { background: #073457; }
 .acesso-subir:focus-visible { outline: 3px solid rgba(11, 79, 138, .35); outline-offset: 2px; }
 @media print { .acesso-subir { display: none; } }
+
+/* Defesa Civil — comunicado (texto formal com a situação em negrito) */
+.dc-comunicado {
+    max-height: 520px; overflow-y: auto; padding: 18px 20px; border: 1px solid var(--bs-border-color, #dee2e6); border-left: 4px solid #0a4677;
+    border-radius: 8px; background: #fff; font-size: .95rem; line-height: 1.65; color: #1b2733;
+}
+.dc-comunicado:focus { outline: none; border-color: #0a4677; box-shadow: 0 0 0 .2rem rgba(10, 70, 119, .15); }
+.dc-comunicado p { margin: 0 0 .85rem; text-align: justify; }
+.dc-comunicado p:last-child { margin-bottom: 0; }
+.dc-comunicado p.dc-comunicado__titulo { margin-bottom: .15rem; font-size: 1.02rem; color: #0a4677; text-align: left; }
+.dc-comunicado p.dc-comunicado__quando { margin-bottom: 1rem; padding-bottom: .7rem; border-bottom: 1px solid #e3e9ee; font-size: .82rem; color: #5b6b7b; text-align: left; }
+.dc-comunicado p.dc-comunicado__fonte { margin-top: 1rem; padding-top: .7rem; border-top: 1px solid #e3e9ee; font-size: .82rem; color: #5b6b7b; text-align: left; }

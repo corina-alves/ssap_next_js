@@ -238,28 +238,34 @@ function porSituacao(postos: Posto[]): Record<Situacao, Posto[]> {
   return por;
 }
 
-/** Texto para a Defesa Civil a partir dos postos de UMA UGRHI (mesmo formato das respostas enviadas). */
-export function texto(postos: Posto[]): string {
+/**
+ * Texto para a Defesa Civil a partir dos postos de UMA UGRHI (mesmo formato das respostas enviadas).
+ * `destaque`: como marcar a situação em que os pontos se encontram ("em emergência",
+ * "condição normal"); sem ele, o texto sai sem marcação.
+ */
+export function texto(postos: Posto[], destaque: (t: string) => string = (t) => t): string {
   if (!postos.length) return 'Não há pontos monitorados com dados na última hora nesta UGRHI.';
   const por = porSituacao(postos);
+  const normal = destaque('condição normal');
   if (por.normal.length === postos.length) {
     return postos.length === 1
-      ? 'O único ponto monitorado permanece em condição normal.'
-      : `Entre os ${postos.length} pontos monitorados, todos permanecem em condição normal.`;
+      ? `O único ponto monitorado permanece em ${normal}.`
+      : `Entre os ${postos.length} pontos monitorados, todos permanecem em ${normal}.`;
   }
   const partes: string[] = [];
   for (const k of GRAVES) {
     const n = por[k].length;
-    if (n) partes.push(`${n} ${partes.length ? '' : n === 1 ? 'encontra-se ' : 'encontram-se '}em ${SITUACOES[k].toLocaleLowerCase('pt-BR')}`);
+    if (n) partes.push(`${n} ${partes.length ? '' : n === 1 ? 'encontra-se ' : 'encontram-se '}${destaque(`em ${SITUACOES[k].toLocaleLowerCase('pt-BR')}`)}`);
   }
-  const demais = por.normal.length === 0 ? '' : por.normal.length === 1 ? ' O outro ponto permanece em condição normal.' : ' Os demais pontos permanecem em condição normal.';
+  const demais = por.normal.length === 0 ? '' : por.normal.length === 1 ? ` O outro ponto permanece em ${normal}.` : ` Os demais pontos permanecem em ${normal}.`;
   const par = [`Entre os pontos monitorados, ${juntar(partes)}.${demais}`];
   for (const k of GRAVES) {
     const lista = por[k];
     if (!lista.length) continue;
     const rot = SITUACOES[k].toLocaleLowerCase('pt-BR');
     const nomes = juntar(lista.map((p) => `${nomeTexto(p)} (${p.prefixo})`));
-    par.push(lista.length === 1 ? `O ponto em ${rot} é ${nomes}.` : `Os ${EXTENSO[lista.length] ?? lista.length} pontos em ${rot} são ${nomes}.`);
+    const em = destaque(`em ${rot}`);
+    par.push(lista.length === 1 ? `O ponto ${em} é ${nomes}.` : `Os ${EXTENSO[lista.length] ?? lista.length} pontos ${em} são ${nomes}.`);
     if (k === 'atencao') continue; // atenção: só a lista
     let anterior: Tendencia | null = null;
     for (const p of lista) {
