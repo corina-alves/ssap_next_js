@@ -33,7 +33,9 @@ $env:PGCLIENTENCODING = 'UTF8'
 function Invoke-Psql([string]$BancoAlvo, [string]$Sql, [string[]]$Variaveis = @()) {
     $argumentos = @('-h', $Servidor, '-p', $Porta, '-U', 'postgres', '-d', $BancoAlvo, '-v', 'ON_ERROR_STOP=1', '-X', '-q', '-t', '-A')
     foreach ($v in $Variaveis) { $argumentos += @('-v', $v) }
-    $saida = $Sql | & $psql @argumentos
+    # A senha chega por getenv dentro do psql; nunca vira argumento do processo.
+    $entrada = if ($env:SSAP_APP_PASSWORD) { '\getenv senha SSAP_APP_PASSWORD' + [Environment]::NewLine + $Sql } else { $Sql }
+    $saida = $entrada | & $psql @argumentos
     if ($LASTEXITCODE -ne 0) { throw "psql falhou (código $LASTEXITCODE)." }
     return $saida
 }
@@ -56,7 +58,8 @@ try {
     [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
     $senhaApp = ([Convert]::ToBase64String($bytes) -replace '[^A-Za-z0-9]', '').Substring(0, 40)
 
-    $variaveis = @("usuario=$Usuario", "senha=$senhaApp", "banco=$Banco")
+    $env:SSAP_APP_PASSWORD = $senhaApp
+    $variaveis = @("usuario=$Usuario", "banco=$Banco")
     $temUsuario = Invoke-Psql 'postgres' 'SELECT 1 FROM pg_roles WHERE rolname = :''usuario'';' $variaveis
     if ($temUsuario) {
         Invoke-Psql 'postgres' 'ALTER ROLE :"usuario" LOGIN PASSWORD :''senha'' NOSUPERUSER NOCREATEDB NOCREATEROLE;' $variaveis | Out-Null
@@ -68,7 +71,9 @@ try {
 
     # Grava DATABASE_URL no .env.local, preservando as outras linhas.
     $envLocal = Join-Path $raiz '.env.local'
-    $url = "DATABASE_URL=postgres://${Usuario}:${senhaApp}@${Servidor}:${Porta}/${Banco}"
+    $usuarioUrl = [Uri]::EscapeDataString($Usuario)
+    $bancoUrl = [Uri]::EscapeDataString($Banco)
+    $url = "DATABASE_URL=postgres://${usuarioUrl}:${senhaApp}@${Servidor}:${Porta}/${bancoUrl}"
     $linhas = @()
     if (Test-Path $envLocal) { $linhas = @(Get-Content $envLocal -Encoding UTF8 | Where-Object { $_ -notmatch '^\s*DATABASE_URL\s*=' }) }
     [IO.File]::WriteAllLines($envLocal, @($url) + $linhas, (New-Object Text.UTF8Encoding $false))
@@ -76,6 +81,7 @@ try {
 }
 finally {
     Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+    Remove-Item Env:SSAP_APP_PASSWORD -ErrorAction SilentlyContinue
 }
 
 Push-Location $raiz

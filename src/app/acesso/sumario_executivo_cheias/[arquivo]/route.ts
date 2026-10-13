@@ -3,6 +3,7 @@ import { capturarDiagrama, lerCaptura, podeSumario, proxySibh, SALAS_SUMARIOS, S
 import { auditar } from '@/lib/auditoria';
 import { acl } from '@/lib/auth/acl';
 import { usuarioAtual } from '@/lib/auth/sessao';
+import { htmlComBasePath } from '@/lib/base-path';
 
 // O HTML original usa scripts/estilos inline, Bootstrap do CDN, o iframe do
 // diagrama do SIBH e o Open-Meteo: política própria, só para estas páginas.
@@ -37,7 +38,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ arquivo:
     const { default: html } = await (chave === 'tiete_pinheiros'
       ? import('@/conteudo/legado/sumario_cheias_tiete_pinheiros')
       : import('@/conteudo/legado/sumario_cheias_ribeira_iguape'));
-    return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': CSP, 'Cache-Control': 'private, no-store' } });
+    return new Response(htmlComBasePath(html), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': CSP, 'Cache-Control': 'private, no-store' } });
   }
 
   const captura = CAPTURAS[arquivo];
@@ -46,7 +47,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ arquivo:
   // Proxy e captura: recusa em JSON (o JavaScript do sumário mostra a mensagem).
   const u = await usuarioAtual();
   if (!u || u.deveTrocarSenha) return json('Sessão expirada. Entre novamente no sistema.', 401);
-  if (!(await podeSumario(await acl(), SALAS_SUMARIOS))) {
+  if (!(await podeSumario(await acl(), captura ? SUMARIOS[captura].salas : SALAS_SUMARIOS))) {
     await auditar({ modulo: 'seguranca', acao: 'acesso_negado', descricao: `Sumário de cheias (API) sem permissão: ${url.pathname}`, usuario: u });
     return json('Sem permissão.', 403);
   }

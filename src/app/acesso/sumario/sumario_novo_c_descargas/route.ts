@@ -4,6 +4,7 @@ import { exigirApi } from '@/lib/acesso/api';
 import { acl, exigirSala } from '@/lib/auth/acl';
 import { dataSumario, PERMISSAO_SUMARIO, SALA_SUMARIO, sumarioHidrico } from '@/lib/boletins-sala/sumario-hidrico';
 import { hojeSp } from '@/lib/integracoes/comum';
+import { htmlComBasePath } from '@/lib/base-path';
 
 export const maxDuration = 120;
 
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
   await acl(); // login primeiro (redireciona para /acesso/login)
   await exigirSala(SALA_SUMARIO, PERMISSAO_SUMARIO); // 404 ou "sem acesso"
-  return new Response(pagina.replace('__HOJE__', hojeSp()), {
+  return new Response(htmlComBasePath(pagina.replace('__HOJE__', hojeSp())), {
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': CSP, 'Cache-Control': 'private, no-store' },
   });
 }

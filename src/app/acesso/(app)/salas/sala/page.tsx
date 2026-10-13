@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -97,7 +98,7 @@ export default async function PaginaSala({ searchParams }: { searchParams: Promi
           <div className="row g-3">
             {doModulo.map((t) => (
               <div key={t.href} className="col-md-6 col-xl-4">
-                <a className="acesso-link-card" href={t.href}>
+                <a className="acesso-link-card" href={comBasePath(t.href)}>
                   <i className={`bi ${t.icone}`} />
                   <span>
                     <strong>{t.titulo}</strong>

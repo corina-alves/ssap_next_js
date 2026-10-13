@@ -118,7 +118,7 @@ a{text-decoration:none}
     overflow:hidden;
     background-image:
         linear-gradient(90deg,rgba(4,27,48,.96),rgba(8,68,111,.82),rgba(73,169,66,.30)),
-        url('/legado/img/hero.jpg');
+        url('/ssap/legado/img/hero.jpg');
     background-size:cover;
     background-position:center;
 }

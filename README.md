@@ -1,7 +1,9 @@
 # Sala de Situação Alfredo Pisani
 
 Reconstrução da Sala de Situação em **Next.js 16 + TypeScript + PostgreSQL**.
-A aplicação PHP `spaguas-ss-ap` serve só de referência de comportamento (nesta máquina: `C:\xampp_\htdocs\spaguas-ss-ap`).
+A aplicação PHP `spaguas-ss-ap` serve só de referência de comportamento.
+
+O endereço base é **`/ssap`** no desenvolvimento e na produção. Os caminhos de módulos descritos abaixo são relativos a esse prefixo (ex.: `/acesso` → `/ssap/acesso`).
 
 ## Área restrita (`/acesso`) — igual à do PHP
 
@@ -52,38 +54,33 @@ Os endereços antigos redirecionam para os novos (`next.config.ts`).
 
    ```powershell
    npm run admin:criar    # a senha é digitada sem aparecer na tela
-   npm run dev            # http://localhost:3000/acesso
+   npm run dev            # http://localhost:3000/ssap/acesso
    ```
 
 As demais opções (`APP_URL`, `STORAGE_DIR`, `CACHE_DIR`, proxy) estão em `.env.example`.
 
 ## Docker
 
-O passo a passo completo (instalação, backup, restauração, atualização, produção com HTTPS e desenvolvimento) está em **[DOCKER.md](DOCKER.md)**.
+[DOCKER.md](DOCKER.md) descreve desenvolvimento completo, produção Ubuntu com PostgreSQL/Nginx existentes, migrações, backup e atualização. [SEGURANCA.md](SEGURANCA.md) registra os achados e as verificações de segurança.
+
+Desenvolvimento (ambiente independente, com banco e ferramentas):
 
 ```bash
-cp .env.docker.example .env.docker      # endereço público e opções
-# senhas do banco em secrets/postgres_password.txt e secrets/app_db_password.txt (veja DOCKER.md)
-docker compose up -d --build
-docker compose run --rm ferramentas npm run admin:criar
+sh docker/preparar-dev.sh
+docker compose --env-file .env.dev -f compose.dev.yaml up -d --build
+docker compose --env-file .env.dev -f compose.dev.yaml exec app entrada npm run admin:criar
+# http://localhost:3001/ssap
 ```
 
-| Serviço | O que é |
-|---|---|
-| `db` | PostgreSQL 18. Na primeira subida, `db/docker-init/` cria o usuário da aplicação sem superusuário |
-| `permissoes` | Ajusta o dono dos volumes de arquivos e de cache e termina |
-| `ferramentas` | Aplica as migrações e termina; também roda `admin:criar` e `integracoes:testar` |
-| `app` | Next.js standalone, com usuário sem privilégios, sistema de arquivos somente leitura e checagem de saúde em `/api/saude`. Fica em `127.0.0.1:3000` |
-| `proxy` | Opcional (`--profile proxy`): nginx com HTTPS na frente do site |
-| `backup` / `restaurar` | Sob demanda: backup e restauração do banco e dos arquivos em `./backups` |
+Produção (preencha `.env.docker`, configure o segredo do banco existente e siga DOCKER.md):
 
-- **Volumes:**
-  - `banco`: o PostgreSQL. Faça backup.
-  - `arquivos`: PDFs e documentos. Faça backup.
-  - `cache`: descartável.
-- **Senhas:** as do banco ficam em arquivos de segredo (`secrets/`), fora do repositório e das variáveis de ambiente.
-- **Publicação:** use o perfil `proxy` ou coloque o proxy reverso da instituição (nginx, IIS) na frente de `127.0.0.1:3000`, com `TRUST_PROXY=true` e `APP_URL` apontando para o endereço público. Em produção o login exige HTTPS.
-- **Desenvolvimento:** `docker compose -f compose.yaml -f compose.dev.yaml up --build`.
+```bash
+docker compose --env-file .env.docker build app ferramentas
+docker compose --env-file .env.docker run --rm ferramentas npm run db:migrar
+docker compose --env-file .env.docker up -d app
+```
+
+Produção publica somente `127.0.0.1:3000`, tem healthcheck em `/ssap/api/saude` e não cria banco nem proxy. Desenvolvimento usa `compose.dev.yaml` sozinho e volumes separados. A URL pública precisa ser `https://SEU_DOMINIO/ssap`; o Nginx existente deve preservar esse prefixo ao encaminhar as requisições. Migrações de produção são uma operação explícita antes da inicialização/atualização.
 
 ## Estrutura
 
@@ -246,4 +243,4 @@ Como funciona:
 - **CSRF:** as Server Actions conferem a origem sozinhas, e as rotas `/api` passam pelo `proxy.ts`.
 - **Auditoria:** somente inserção, garantida por trigger no banco.
 
-**Em produção**, rode atrás de um proxy reverso (IIS/nginx) com HTTPS e `TRUST_PROXY=true`. Sem ele, o IP do cliente pode ser forjado, e o limite por IP deixa de ser confiável. O bloqueio por conta continua valendo.
+**Em produção**, rode atrás de um proxy reverso (IIS/nginx) com HTTPS e `TRUST_PROXY=true`. Com `TRUST_PROXY=false`, o cabeçalho de IP é ignorado e o bloqueio por conta continua valendo. Em produção, o Nginx precisa sobrescrever os cabeçalhos encaminhados; a porta do app permanece acessível somente no host.

@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -36,7 +37,7 @@ export default async function VerDocumento({
       {enviado && <div className="alerta alerta-ok">Documento enviado.</div>}
       <section className="cartao">
         <p>
-          <a href={`/acesso/documentos/${d.id}/arquivo`}>{d.nome_original}</a>{' '}
+          <a href={comBasePath(`/acesso/documentos/${d.id}/arquivo`)}>{d.nome_original}</a>{' '}
           <small className="suave">({tamanho(d.tamanho)})</small>
         </p>
         {d.descricao && <p>{d.descricao}</p>}

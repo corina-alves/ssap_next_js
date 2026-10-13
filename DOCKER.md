@@ -1,248 +1,154 @@
-# Sala de Situação no Docker
+# Docker: desenvolvimento e produção Ubuntu
 
-Com o Docker, o site, o banco de dados e tudo de que eles dependem rodam em contêineres. No servidor só é preciso ter o Docker (com o Docker Compose) — nada de Node.js ou PostgreSQL instalados à parte.
+A aplicação atende em **`/ssap` nos dois ambientes**. O prefixo é compilado pelo Next; mudar a variável de runtime não muda as rotas.
 
-Os comandos são os mesmos no Windows (PowerShell) e no Linux, sempre na pasta do projeto.
+| Ambiente | Arquivo | Banco / proxy | Endereço padrão |
+|---|---|---|---|
+| Desenvolvimento | `compose.dev.yaml` independente | PostgreSQL local incluído; navegador, dependências e ferramentas incluídos | `http://localhost:3001/ssap` |
+| Produção | `compose.yaml` | PostgreSQL e Nginx existentes, fora deste Compose | `https://SEU_DOMINIO/ssap` |
 
-## O que sobe
+Não combine os dois arquivos Compose. Os projetos e volumes de desenvolvimento e produção são separados. Produção conserva o nome `sala-situacao` e os volumes de arquivos/cache da definição anterior. Nenhum volume de banco existente é removido ou importado automaticamente.
 
-| Serviço | O que é |
-|---|---|
-| `db` | PostgreSQL 18. Não tem porta aberta para fora: só os outros contêineres falam com ele. |
-| `permissoes` | Ajusta o dono dos volumes de arquivos e de cache e termina (não mexe no conteúdo). |
-| `ferramentas` | Aplica as migrações que faltam e termina. Também roda os scripts (`admin:criar`, `integracoes:testar`…). |
-| `app` | O site (Next.js). Atende em `http://127.0.0.1:3000`, só na própria máquina. |
-| `proxy` (opcional) | nginx com HTTPS na frente do site. Só sobe com `--profile proxy`. |
-| `backup` / `restaurar` | Sob demanda, para backup e restauração. |
+Requisitos: Docker Engine e Compose plugin 2.24+ no Ubuntu, acesso aos registries/npm e às APIs externas. O script inicial de desenvolvimento usa `openssl`. Instalação do Engine: [documentação oficial para Ubuntu](https://docs.docker.com/engine/install/ubuntu/). Não precisa instalar Node no host.
 
-Onde ficam os dados (volumes do Docker — sobrevivem a reinício, atualização e `docker compose down`):
+## Desenvolvimento completo
 
-| Volume | Conteúdo | Backup? |
-|---|---|---|
-| `sala-situacao_banco` | Banco de dados | **Sim** |
-| `sala-situacao_arquivos` | PDFs de boletins e documentos enviados | **Sim** |
-| `sala-situacao_cache` | Cache das consultas às APIs | Não (descartável) |
-
-> **Nunca use `docker compose down -v` nem `docker volume rm`**: o `-v` apaga os volumes, isto é, o banco e os arquivos.
-
-## Primeira instalação
-
-1. **Configuração.** Copie o modelo e ajuste o endereço público:
-
-   ```
-   cp .env.docker.example .env.docker
-   ```
-
-   - `APP_URL`: endereço que as pessoas usam (ex.: `https://salasituacao.sp.gov.br`).
-   - `TRUST_PROXY`: `true` com proxy reverso na frente; `false` sem.
-   - `SAISP_USUARIO` / `SAISP_SENHA`: login do SAISP para a imagem de radar do Boletim Diário (opcional).
-
-2. **Senhas do banco.** Ficam em dois arquivos na pasta `secrets/`, que não vai para o repositório. Gere senhas longas e aleatórias, só com letras e números, sem quebra de linha no fim:
-
-   Linux:
-   ```
-   mkdir -p secrets
-   openssl rand -hex 24 | tr -d '\n' > secrets/postgres_password.txt
-   openssl rand -hex 24 | tr -d '\n' > secrets/app_db_password.txt
-   chmod 600 secrets/*.txt .env.docker
-   ```
-
-   Windows (PowerShell):
-   ```
-   New-Item -ItemType Directory -Force secrets | Out-Null
-   foreach ($n in 'postgres_password','app_db_password') {
-     $b = New-Object byte[] 24; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
-     [IO.File]::WriteAllText("$PWD\secrets\$n.txt", -join ($b | ForEach-Object { $_.ToString('x2') }))
-   }
-   ```
-
-   - `postgres_password.txt`: administrador do PostgreSQL (só manutenção).
-   - `app_db_password.txt`: usuário `ssap_app`, o único que o site usa (sem poderes de administrador).
-   - As senhas valem a partir da **primeira** subida do banco. Trocar o arquivo depois não troca a senha no banco.
-
-3. **Subir.**
-
-   ```
-   docker compose up -d --build
-   ```
-
-   Na primeira vez o banco é criado, as migrações são aplicadas e o site sobe.
-
-4. **Criar o primeiro administrador** (pula se for restaurar um backup com usuários):
-
-   ```
-   docker compose run --rm ferramentas npm run admin:criar
-   ```
-
-5. **Conferir.**
-
-   ```
-   docker compose ps
-   ```
-
-   `db` e `app` devem aparecer como `healthy`. O site responde em `http://127.0.0.1:3000`.
-
-### Trazer os dados de uma instalação sem Docker
-
-Se já existe um banco PostgreSQL com dados (por exemplo, o da máquina de desenvolvimento), copie-o para dentro do Docker sem mexer no original:
-
-```
-mkdir -p backups/ssap_importacao
-pg_dump --format=custom --no-owner --no-acl --file=backups/ssap_importacao/banco.dump "postgres://ssap_app:SENHA@localhost:5432/ssap"
-tar -czf backups/ssap_importacao/arquivos.tar.gz -C storage .
-docker compose stop app
-docker compose run --rm -e CONFIRMAR=SIM restaurar ssap_importacao
-docker compose up -d
+```bash
+sh docker/preparar-dev.sh
+docker compose --env-file .env.dev -f compose.dev.yaml config --quiet
+docker compose --env-file .env.dev -f compose.dev.yaml up -d --build
+docker compose --env-file .env.dev -f compose.dev.yaml exec app entrada npm run admin:criar
 ```
 
-## Dia a dia
+Abra `http://localhost:3001/ssap/acesso`. O script cria `.env.dev` e senhas aleatórias somente em `secrets/dev`, sem sobrescrever arquivos existentes. Configura UID/GID do desenvolvedor no Linux para preservar a propriedade do código. O diretório de segredos é privado; a senha da aplicação no dev é legível pelos dois UIDs que precisam dela (PostgreSQL e desenvolvedor), e só é montada nos serviços autorizados. Senhas de produção usam permissões diferentes, abaixo.
 
-| Para… | Comando |
-|---|---|
-| Iniciar | `docker compose up -d` |
-| Parar (os dados ficam) | `docker compose stop` |
-| Parar e remover os contêineres (os dados ficam) | `docker compose down` |
-| Reiniciar tudo | `docker compose restart` |
-| Reiniciar só o site | `docker compose restart app` |
-| Ver a situação | `docker compose ps` |
-| Ver os logs | `docker compose logs -f` |
-| Logs só do site (últimas 200 linhas) | `docker compose logs --tail 200 app` |
-| Logs do banco | `docker compose logs --tail 200 db` |
-| Testar as APIs externas | `docker compose run --rm ferramentas npm run integracoes:testar` |
-| Gerar link de definição de senha | `docker compose run --rm ferramentas npm run senha:link` |
-| Abrir o `psql` | `docker compose exec db psql -U postgres ssap` |
+O ambiente inclui PostgreSQL 18, migrações automáticas, Node 24, npm, TypeScript, tsx, testes e Chromium/Playwright para captura de diagramas. O código é montado para recarga automática. `node_modules`, `.next` e cache npm ficam em volumes Linux separados; alteração no lockfile atualiza dependências na próxima inicialização. Após alterar dependências, reinicie o app; após atualizar a versão de Playwright, reconstrua também a imagem para atualizar o Chromium.
 
-Os serviços têm `restart: unless-stopped`: voltam sozinhos se caírem e quando o servidor reinicia, desde que o Docker inicie com o sistema (`sudo systemctl enable docker` no Linux; no Docker Desktop, "Start Docker Desktop when you sign in").
-
-Os logs de cada serviço são limitados a 5 arquivos de 10 MB; não enchem o disco.
-
-## Migrações
-
-As migrações de `db/migrations` são aplicadas **sozinhas** a cada `docker compose up`, antes de o site subir. Só entram as que ainda faltam; cada uma roda numa transação (se falhar, nada dela fica aplicado e o site não sobe com o banco pela metade).
-
-Para rodar à mão:
-
-```
-docker compose run --rm ferramentas npm run db:migrar
+```bash
+# Verificações e ferramentas (exec não executa entrypoint: use entrada para ler os segredos)
+docker compose --env-file .env.dev -f compose.dev.yaml exec app entrada npm test
+docker compose --env-file .env.dev -f compose.dev.yaml exec app entrada npm run typecheck
+docker compose --env-file .env.dev -f compose.dev.yaml exec app entrada npm run db:migrar
+docker compose --env-file .env.dev -f compose.dev.yaml exec app entrada npm run integracoes:testar
+docker compose --env-file .env.dev -f compose.dev.yaml exec app entrada npm install NOME_DO_PACOTE
+docker compose --env-file .env.dev -f compose.dev.yaml exec db psql -U postgres -d ssap
+docker compose --env-file .env.dev -f compose.dev.yaml logs -f app
 ```
 
-## Backup
+PostgreSQL acessível no host em `127.0.0.1:5433` para DBeaver/psql. Use o usuário `ssap_app`, banco `ssap`, senha de `secrets/dev/app_db_password.txt`. Para rodar Node no host, use `.env.local` com os valores de `.env.example`, URL do banco apontando à porta 5433 e `APP_URL=http://localhost:3000/ssap`. O `.env.local` nunca é incluído na imagem.
 
-```
-docker compose run --rm backup
-```
+Para mudar portas, altere `.env.dev` (`APP_PORTA`, `DB_PORTA_LOCAL` e `APP_URL` juntos). `WATCHPACK_POLLING=true` é opcional para sistemas de arquivos sem eventos de mudança. Não mude o segredo de um banco já inicializado sem alterar também a senha do papel PostgreSQL.
 
-Cria uma pasta `backups/ssap_AAAAMMDD-HHMMSS/` com:
+## Produção: configuração e banco existente
 
-- `banco.dump` — o banco inteiro;
-- `arquivos.tar.gz` — os PDFs e documentos enviados;
-- `SHA256SUMS` — para conferir a integridade.
+Copie `.env.docker.example` para `.env.docker`, mantenha-o com modo 600 e preencha:
 
-Pode rodar com o site no ar. No Linux, a pasta `backups/` precisa ser gravável pelo usuário 1000: `mkdir -p backups && sudo chown 1000:1000 backups`.
+- `APP_URL=https://SEU_DOMINIO/ssap`, com HTTPS, sem query, fragmento ou credenciais.
+- `DB_HOST`, `DB_PORTA`, `DB_NOME`, `DB_USUARIO` da instância existente. Use um papel próprio sem `SUPERUSER`, `CREATEDB` ou `CREATEROLE`; não use `postgres` para o site.
+- `DB_SSL_MODE=verify-full` verifica CA e hostname. Não há opção para ignorar certificados. Para banco no mesmo host em rede local controlada e sem TLS, `disable` é uma escolha explícita do operador.
+- `APP_PORTA`, se a porta 3000 já estiver ocupada. A publicação permanece em `127.0.0.1`, destinada ao Nginx no host.
 
-**Backup diário automático (Linux)** — `crontab -e`:
+`localhost` dentro do app é o próprio container. Para PostgreSQL no Ubuntu host, existe o alias `host.docker.internal:host-gateway`. O PostgreSQL precisa escutar em um endereço alcançável pela bridge Docker, e `pg_hba.conf` deve autorizar somente a rede/endereço dessa aplicação, banco e papel, usando `scram-sha-256` (ou `hostssl` com TLS). Inspecione a rede com `docker network inspect sala-situacao_aplicacao` após criar o app; preserve as regras existentes e não abra `0.0.0.0/0`. Firewall também precisa permitir esse caminho específico. Se o banco só escuta em `127.0.0.1`, esse alias não resolve a restrição de escuta.
 
-```
-30 2 * * * cd /opt/ssap && docker compose run --rm -T backup >> backups/backup.log 2>&1
-```
+Grave **a senha já existente do papel** em `secrets/app_db_password.txt`, sem colocá-la no terminal, histórico, YAML, build args ou `DATABASE_URL` do `.env.docker`. O diretório deve ser privado. O container roda como UID/GID 1000, portanto prepare a leitura do arquivo:
 
-Para apagar sozinho os backups com mais de 30 dias, acrescente `-e BACKUP_MANTER_DIAS=30` depois de `run --rm -T`. Sem isso, nenhum backup é apagado.
-
-**Copie a pasta `backups/` para outra máquina** (rsync, fita, armazenamento da instituição). Backup no mesmo disco do servidor não protege contra a perda do servidor.
-
-## Restauração
-
-> A restauração **substitui o banco** pelo do backup: o que foi cadastrado depois dele é perdido. Faça um backup novo antes, se o banco atual ainda tiver algo que importa.
-
-```
-docker compose stop app
-docker compose run --rm -e CONFIRMAR=SIM restaurar ssap_AAAAMMDD-HHMMSS
-docker compose up -d
+```bash
+mkdir -p secrets
+chmod 700 secrets
+# Grave a senha existente por editor seguro/gerenciador de segredos, sem imprimi-la.
+sudo chown root:1000 secrets/app_db_password.txt
+sudo chmod 640 secrets/app_db_password.txt
+chmod 600 .env.docker
 ```
 
-- Sem `-e CONFIRMAR=SIM` o comando só avisa e não faz nada. Sem o nome da pasta, lista os backups disponíveis.
-- O banco é restaurado numa transação: ou volta inteiro, ou fica como estava.
-- Os arquivos do backup são copiados de volta; nenhum arquivo que já esteja no volume é apagado.
+É possível indicar um arquivo externo ao checkout em `DB_SENHA_HOST_ARQUIVO`. Secrets do Compose com origem em arquivo são bind mounts: `uid/gid/mode` declarados no YAML não corrigem a permissão no host. [Docker: secrets e permissões](https://docs.docker.com/reference/compose-file/services/#secrets).
 
-## Atualizar o site
+Para CA privada, configure `DB_SSL_CA_ARQUIVO=/certs/postgres-ca.pem` e monte a CA somente leitura em `app` e `ferramentas`; também em `backup`/`restaurar` se usados. A mesma política TLS é aplicada ao pool e às ferramentas. Sem CA específica, Node usa as CAs de confiança e o cliente PostgreSQL de backup usa `sslrootcert=system`. [PostgreSQL: TLS verificado](https://www.postgresql.org/docs/18/libpq-ssl.html).
 
-1. Faça um backup: `docker compose run --rm backup`
-2. Traga o código novo: `git pull`
-3. Reconstrua e suba: `docker compose up -d --build`
+Exemplo de `compose.override.yaml` para uma CA (repita o mount nos serviços de manutenção):
 
-O banco e os arquivos não são tocados pela atualização: ficam nos volumes. As migrações novas são aplicadas antes de o site voltar. O site fica fora do ar por alguns segundos durante a troca.
-
-Para voltar à versão anterior: `git checkout <versão anterior>` e `docker compose up -d --build`. Se a versão nova tiver aplicado migrações, restaure também o backup do passo 1.
-
-Limpeza de imagens antigas (não mexe em volumes): `docker image prune -f`.
-
-## Implantar no servidor de produção (Linux)
-
-1. **Instale o Docker Engine com o plugin Compose** (documentação oficial do Docker para a sua distribuição) e ative-o no início do sistema: `sudo systemctl enable --now docker`.
-2. **Copie o projeto** para o servidor, por exemplo em `/opt/ssap` (`git clone` ou cópia da pasta, sem `node_modules`, `.next`, `storage` e `.env.local`).
-3. Siga a **Primeira instalação** acima (`.env.docker`, `secrets/`, `docker compose up -d --build`).
-4. **Dados existentes:** leve a pasta de um backup para `backups/` no servidor e use a **Restauração**.
-5. **HTTPS.** O login só funciona por HTTPS em produção (o cookie de sessão é marcado como seguro). Escolha um:
-
-   **a) nginx do próprio projeto.** Coloque o certificado em `deploy/certs/fullchain.pem` e `deploy/certs/privkey.pem`, defina `SERVIDOR_NOME` e `TRUST_PROXY=true` no `.env.docker` e suba com o perfil:
-
-   ```
-   docker compose --profile proxy up -d --build
-   ```
-
-   Ele atende nas portas 80 (redireciona para HTTPS) e 443. Ao renovar o certificado: `docker compose --profile proxy restart proxy`. Com o perfil ligado, use `--profile proxy` também nos outros comandos (`ps`, `logs`, `down`). Se as portas 80/443 estiverem ocupadas, defina `PROXY_PORTA_HTTP` e `PROXY_PORTA_HTTPS` no arquivo `.env`.
-
-   **b) proxy reverso da instituição** (nginx, IIS, balanceador). Aponte-o para `http://127.0.0.1:3000`. Ele precisa enviar `Host`, `X-Forwarded-Host`, `X-Forwarded-Proto` e `X-Forwarded-For`, aceitar envio de até 32 MB e esperar até 300 s por resposta. O arquivo `deploy/nginx/ssap.conf.template` serve de modelo.
-
-6. **Firewall:** libere só 80 e 443. A porta 3000 fica presa a `127.0.0.1` e o banco não tem porta publicada.
-7. **Agende o backup** (seção Backup) e a cópia para fora do servidor.
-
-### Rede da instituição
-
-- **Proxy de saída** para a internet: descomente `NODE_USE_ENV_PROXY`, `HTTPS_PROXY`, `HTTP_PROXY` e `NO_PROXY` no `.env.docker` (o `NO_PROXY` precisa conter `db`).
-- **Proxy que inspeciona HTTPS** (certificado próprio da instituição): a verificação de certificado nunca é desligada. Monte o certificado raiz no serviço `app` e aponte `NODE_EXTRA_CA_CERTS` para ele, num arquivo `compose.override.yaml`:
-
-  ```yaml
-  services:
-    app:
-      volumes:
-        - ./deploy/certs/ca-instituicao.pem:/certs/ca-instituicao.pem:ro
-  ```
-
-- O servidor precisa alcançar por HTTPS: `mananciais.sabesp.com.br`, `www.ana.gov.br`, `apps.spaguas.sp.gov.br` (SIBH), `sssp.spaguas.sp.gov.br` (SSD), `api.open-meteo.com`, `servicodados.ibge.gov.br`, `www.saisp.br`, `saisp-temp.s3.amazonaws.com` e `www.ipmetradar.com.br`.
-
-## Desenvolvimento
-
-O `compose.dev.yaml` roda o site com `next dev`, lendo o código da pasta (alterou o arquivo, a página recarrega), e abre o banco em `127.0.0.1:5433`:
-
-```
-docker compose -f compose.yaml -f compose.dev.yaml up --build
+```yaml
+services:
+  app:
+    volumes:
+      - ./deploy/certs/postgres-ca.pem:/certs/postgres-ca.pem:ro
+  ferramentas:
+    volumes:
+      - ./deploy/certs/postgres-ca.pem:/certs/postgres-ca.pem:ro
 ```
 
-Também dá para usar só o banco do Docker e continuar com `npm run dev` fora dele: suba com o comando acima e use `DATABASE_URL=postgres://ssap_app:<senha de secrets/app_db_password.txt>@127.0.0.1:5433/ssap` no `.env.local`.
+## Produção: construir, migrar e iniciar
 
-Para mudar a porta local do site (padrão 3000), crie um arquivo `.env` com `APP_PORTA=3001`.
+Faça backup do banco existente antes de aplicar migrações e confirme que ele é o banco desta aplicação. As migrações usam o schema `public` e criam as tabelas SSAP; uma base compartilhada com tabelas homônimas precisa ser analisada antes. Banco ainda não migrado precisa de permissão DDL para a operação de migração. Para separar usuário migrador e runtime, consulte [SEGURANCA.md](SEGURANCA.md).
 
-Para voltar ao modo de produção depois de usar o de desenvolvimento: `docker compose up -d`.
+```bash
+docker compose --env-file .env.docker config --quiet
+docker compose --env-file .env.docker build app ferramentas
+docker compose --env-file .env.docker run --rm ferramentas npm run db:migrar
+# Somente se ainda não houver administrador:
+docker compose --env-file .env.docker run --rm ferramentas npm run admin:criar
+docker compose --env-file .env.docker up -d app
+docker compose --env-file .env.docker ps
+curl -fsS http://127.0.0.1:3000/ssap/api/saude
+```
 
-## Segurança — o que já vem configurado
+Ajuste a porta do curl a `APP_PORTA`. **Produção não executa migrações automaticamente ao subir o site.** `ferramentas` está no perfil de operações, ativado implicitamente ao usar `run ferramentas`. O healthcheck retorna 200 só quando app e banco estão funcionando, e 503 sem detalhes sensíveis se a conexão falhar. Em atualização, pare o app antes de migrar para evitar código antigo com schema novo; inicie-o depois da migração bem-sucedida. Rollback de imagem não desfaz migrações.
 
-- O site roda como usuário sem privilégios (`node`), com o sistema de arquivos somente leitura (só escreve nos volumes), sem capacidades extras do Linux.
-- As senhas do banco ficam em arquivos de segredo, fora do repositório e fora das variáveis de ambiente dos contêineres.
-- O banco não é publicado: fica numa rede interna do Docker, sem acesso de fora nem saída para a internet.
-- O site usa um usuário do banco sem poderes de administrador.
-- As senhas dos usuários continuam com Argon2id.
-- Os arquivos enviados ficam fora da pasta pública, num volume próprio, e só saem pelas rotas que conferem a permissão.
-- Versões fixas: Node 24.21.0, PostgreSQL 18.6, nginx 1.30.5. Atualize de propósito, trocando a versão no `Dockerfile`/`compose.yaml` e testando.
-- Limites de CPU e memória por serviço (`deploy.resources.limits` no `compose.yaml`).
+## Nginx já existente e `/ssap`
 
-## Problemas comuns
+Não suba outro Nginx nem substitua o `server` existente. Revise primeiro o site ativo em `sites-enabled`/`nginx -T`. Os arquivos do projeto são **trechos de referência**, não mudanças aplicadas ao servidor:
 
-| Sintoma | Causa provável |
-|---|---|
-| `app` não sobe e `ferramentas` saiu com erro | Migração falhou: `docker compose logs ferramentas`. |
-| `entrada: segredo da senha do banco não encontrado` | Falta `secrets/app_db_password.txt`. |
-| `password authentication failed` | O arquivo de senha foi trocado depois da primeira subida do banco, ou tem quebra de linha do Windows. |
-| Login volta para a tela de login sem erro | Acesso por HTTP em produção: use HTTPS (item 5 da implantação). |
-| Páginas de dados com "indisponível" | Sem saída para as APIs: `docker compose run --rm ferramentas npm run integracoes:testar`. |
-| Porta 3000 já em uso | Outro programa na porta: crie `.env` com `APP_PORTA=3001`. |
+1. Instale `deploy/nginx/ssap-proxy.conf` em `/etc/nginx/snippets/ssap-proxy.conf` e ajuste a porta se necessário.
+2. Adicione o conteúdo de `deploy/nginx/ssap.conf.template` dentro do `server` HTTPS existente, compatibilizando locations já presentes.
+3. Execute `sudo nginx -t`; só então `sudo systemctl reload nginx`.
+4. Confirme `curl -fsS https://SEU_DOMINIO/ssap/api/saude` e teste login e envio de PDF pelo navegador.
+
+`proxy_pass http://127.0.0.1:3000;` **não leva barra após a porta**: a URI `/ssap/...` deve chegar intacta ao Next. O trecho cobre `/ssap` e `/ssap/`, mantém streaming, aceita uploads de 32 MB e timeout de 300 segundos. Nginx sobrescreve Host/Forwarded headers e `X-Forwarded-For=$remote_addr`; `TRUST_PROXY=true` só faz sentido com tráfego passando por esse proxy. Se existir balanceador antes do Nginx, configure `real_ip` para os proxies confiáveis reais antes de usar `$remote_addr`. Preservar o prefixo é necessário para links, assets e Server Actions. [Next: basePath](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath).
+
+O location de redefinição desativa access log para evitar registrar o token da URL. Preserve HTTPS e a política HSTS do site existente. Cookies de sessão usam `__Host-`, `Secure`, `HttpOnly`, `SameSite=Strict` e `Path=/` conforme as exigências desse prefixo; login de produção deve ser validado pela URL HTTPS pública.
+
+## Segurança, captura de diagramas e integrações
+
+A imagem final usa standalone, usuário `node`, filesystem somente leitura, volumes de uploads/cache, capabilities removidas, limites de processos/memória e logs rotativos. Segredos/ambientes/dados/histórico Git ficam fora do build context. Não envie segredos em variáveis `NEXT_PUBLIC_*`.
+
+Chromium é necessário para os diagramas dos sumários. A captura usa sandbox, cache de cinco minutos, fila serial/deduplicada e prazo de 75 segundos. `docker/chromium-seccomp.json` deriva do [perfil oficial Playwright v1.64.0](https://github.com/microsoft/playwright/blob/v1.64.0/utils/docker/seccomp_profile.json), acrescido de `chroot` para a sandbox dentro do namespace de usuário. Funciona sem `privileged`, `SYS_ADMIN` ou desligar AppArmor. Um host que proíbe namespaces de usuário precisa de política específica analisada pelo administrador; a aplicação mantém a sandbox e informa falha da captura, sem removê-la automaticamente. [Playwright em Docker](https://playwright.dev/docs/docker).
+
+Credencial opcional SAISP: salve fora do Git, com leitura para UID/GID 1000; acrescente um secret `saisp_password` em override, monte em `app` e defina `SAISP_SENHA_ARQUIVO=/run/secrets/saisp_password`. Não preencha a senha em `.env.docker`. `entrada` a carrega somente em runtime. Proxy de saída/CA corporativa: opções comentadas nos modelos; monte a CA em app/ferramentas, sem desativar verificação HTTPS.
+
+As APIs externas exigem saída HTTPS para SABESP, ANA, SIBH/SSD SP Águas, Open-Meteo, IBGE, SAISP, S3 e IPMet. Falhas do provedor são diferentes de falhas do Docker. O comando `integracoes:testar` mostra a situação atual das fontes.
+
+Achados e limitações da revisão de credenciais, SQL e autenticação: [SEGURANCA.md](SEGURANCA.md).
+
+## Operação e backup
+
+```bash
+docker compose --env-file .env.docker logs --tail 200 app
+docker compose --env-file .env.docker restart app
+docker compose --env-file .env.docker run --rm ferramentas npm run integracoes:testar
+docker compose --env-file .env.docker run --rm ferramentas npm run arquivos:banco
+# Exibe um token sensível de uso único: execute interativamente, sem enviar a logs.
+docker compose --env-file .env.docker run --rm ferramentas npm run senha:link -- LOGIN
+```
+
+`restart: unless-stopped` permite reinício com o daemon Docker; no Ubuntu habilite-o com `sudo systemctl enable docker`. Um status unhealthy indica problema, mas Docker Compose não reinicia um container somente por estar unhealthy; use seu monitoramento para alertar.
+
+Se o banco já tem backup institucional, use-o junto com o volume de arquivos. O perfil `manutencao` também inclui clientes `pg_dump`/`pg_restore` 18 para banco existente PostgreSQL 15–18 (servidor mais novo exige cliente compatível). Prepare `backups/` para UID1000 e mantenha cópia fora do servidor:
+
+```bash
+mkdir -p backups
+sudo chown 1000:1000 backups
+chmod 700 backups
+docker compose --env-file .env.docker run --rm backup
+```
+
+O backup contém banco.dump, arquivos.tar.gz e SHA256SUMS, com arquivos privados. Ao manter o site gravando, o dump é consistente no banco, mas banco e filesystem não constituem uma transação única; pare o app se precisar de um backup coordenado. Retenção é opcional (`BACKUP_MANTER_DIAS`, inteiro positivo). Nunca apague volumes de arquivos/banco com `down -v` ou `docker volume rm`.
+
+Restauração é destrutiva para o banco selecionado; confira `DB_HOST/DB_NOME`, interrompa o app e faça backup novo antes:
+
+```bash
+docker compose --env-file .env.docker stop app
+docker compose --env-file .env.docker run --rm -e CONFIRMAR=SIM restaurar ssap_AAAAMMDD-HHMMSS
+docker compose --env-file .env.docker up -d app
+```
+
+`pg_restore` usa uma transação; os arquivos são restaurados depois, portanto os dois recursos não são atômicos. Permissões/triggers/tabelas compartilhadas precisam ser avaliadas antes de qualquer restauração em produção.

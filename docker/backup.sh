@@ -7,13 +7,30 @@
 #   SHA256SUMS        conferência de integridade
 # Não apaga backups antigos, a menos que BACKUP_MANTER_DIAS esteja definido.
 set -eu
+umask 077
+case "${BACKUP_MANTER_DIAS:-}" in
+  ''|*[!0-9]*)
+    if [ -n "${BACKUP_MANTER_DIAS:-}" ]; then
+      echo 'backup: BACKUP_MANTER_DIAS deve ser um inteiro positivo' >&2
+      exit 2
+    fi ;;
+esac
+if [ -n "${BACKUP_MANTER_DIAS:-}" ] && [ "$BACKUP_MANTER_DIAS" -eq 0 ]; then
+  echo 'backup: BACKUP_MANTER_DIAS deve ser maior que zero' >&2
+  exit 2
+fi
 
 PGPASSWORD="$(tr -d '\r\n' < "${DB_SENHA_ARQUIVO:?defina DB_SENHA_ARQUIVO}")"
 export PGPASSWORD
-export PGHOST="${DB_HOST:-db}" PGPORT="${DB_PORTA:-5432}" PGUSER="${DB_USUARIO:-ssap_app}" PGDATABASE="${DB_NOME:-ssap}"
+export PGHOST="${DB_HOST:?defina DB_HOST}" PGPORT="${DB_PORTA:-5432}" PGUSER="${DB_USUARIO:?defina DB_USUARIO}" PGDATABASE="${DB_NOME:?defina DB_NOME}"
+export PGCONNECT_TIMEOUT=10
+if [ "${PGSSLMODE:-}" = verify-full ] && [ -z "${PGSSLROOTCERT:-}" ]; then
+  export PGSSLROOTCERT=system
+fi
 
 destino="/backups/ssap_$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$destino"
+# Nunca compartilha o destino com outro backup iniciado no mesmo segundo.
+mkdir "$destino"
 # se algo falhar, não deixa um backup pela metade com cara de bom
 trap 'echo "backup: FALHOU — removendo $destino" >&2; rm -rf "$destino"' EXIT
 

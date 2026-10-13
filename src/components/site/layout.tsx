@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { BotaoTopo } from './botao-topo';
@@ -84,7 +85,7 @@ export function Rodape() {
             <div className="sssp-footer__grid">
               <div className="sssp-footer__brand">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/legado/logo/spaguas_white.png" alt="SP Águas" />
+                <img src={comBasePath('/legado/logo/spaguas_white.png')} alt="SP Águas" />
                 <strong>Agência de Águas do Estado de São Paulo</strong>
                 <span>Sala de Situação Alfredo Pisani</span>
               </div>
@@ -97,7 +98,7 @@ export function Rodape() {
                   </li>
                   <li>
                     <i className="bi bi-envelope" />
-                    <a href={`mailto:${CONTATO.email}`}>{CONTATO.email}</a>
+                    <a href={comBasePath(`mailto:${CONTATO.email}`)}>{CONTATO.email}</a>
                   </li>
                   <li>
                     <i className="bi bi-telephone" />

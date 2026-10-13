@@ -7,7 +7,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import pg from 'pg';
-import { env } from '../src/lib/env';
+import { configuracaoBanco } from '../src/lib/db-config';
+import { erroParaOperador } from '../src/lib/erros';
 import { carregarEnv } from './_comum';
 
 carregarEnv();
@@ -15,9 +16,11 @@ carregarEnv();
 const PASTA = join(process.cwd(), 'db', 'migrations');
 
 async function principal(): Promise<void> {
-  const cliente = new pg.Client({ connectionString: env().DATABASE_URL });
-  await cliente.connect();
+  const cliente = new pg.Client(configuracaoBanco());
   try {
+    await cliente.connect();
+    // Duas execuções simultâneas não reaplicam a mesma versão.
+    await cliente.query('SELECT pg_advisory_lock(hashtext($1))', ['ssap:migrations']);
     await cliente.query("SET client_encoding = 'UTF8'");
     const existe = await cliente.query<{ t: string | null }>("SELECT to_regclass('schema_migrations')::text AS t");
     const aplicadas = new Set<string>();
@@ -49,6 +52,6 @@ async function principal(): Promise<void> {
 }
 
 principal().catch((e) => {
-  console.error((e as Error).message);
+  console.error(erroParaOperador(e));
   process.exit(1);
 });

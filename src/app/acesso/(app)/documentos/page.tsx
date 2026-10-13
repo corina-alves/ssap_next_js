@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -105,7 +106,7 @@ export default async function PaginaDocumentos({
                       </small>
                     </td>
                     <td>
-                      <a href={`/acesso/documentos/${d.id}/arquivo`}>
+                      <a href={comBasePath(`/acesso/documentos/${d.id}/arquivo`)}>
                         <small>
                           {extensao(d.nome_original)}, {tamanho(d.tamanho)}
                         </small>

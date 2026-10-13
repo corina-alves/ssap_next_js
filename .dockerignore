@@ -10,10 +10,7 @@ storage
 backups
 secrets
 deploy/certs
-.env
-.env.local
-.env.*.local
-.env.docker
+.env*
 
 .git
 .azure
@@ -23,6 +20,7 @@ deploy/certs
 Dockerfile
 compose.yaml
 compose.dev.yaml
+compose.*.yaml
 deploy
 docker/backup.sh
 docker/restaurar.sh

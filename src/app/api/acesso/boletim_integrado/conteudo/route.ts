@@ -5,6 +5,7 @@ import {
 } from '@/lib/boletins-sala/boletim-integrado';
 import { lerEdicoes, lerManuais } from '@/lib/boletins-sala/boletim-integrado-armazenado';
 import { avisoPendencias, htmlChuvaVazao, htmlExutorios, htmlMananciais } from '@/lib/boletins-sala/boletim-integrado-html';
+import { codigoErro } from '@/lib/erros';
 
 export const maxDuration = 180;
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   try {
     return NextResponse.json({ ok: true, tipo, titulo: TIPOS[tipo], periodo: { ano, mes }, html: await montar(tipo, ano, mes) }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (e) {
-    console.error('Boletim integrado:', e);
+    console.error('Boletim integrado:', codigoErro(e));
     return erro('Não foi possível montar o boletim no momento. Tente novamente em instantes.', 500);
   }
 }

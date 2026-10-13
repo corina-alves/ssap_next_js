@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { ErroOperacional } from '../src/lib/erros';
 
 /** Lê .env.local/.env (como o Next faz), sem sobrescrever o que já está no ambiente. */
 export function carregarEnv(): void {
@@ -44,7 +45,7 @@ export async function perguntar(texto: string, oculto = false): Promise<string> 
     const tecla = (dado: string) => {
       for (const ch of dado) {
         if (ch === '\r' || ch === '\n') return fim(), ok(valor);
-        if (ch === '\u0003') return fim(), falha(new Error('Cancelado.'));
+        if (ch === '\u0003') return fim(), falha(new ErroOperacional('Cancelado.'));
         if (ch === '\u007f' || ch === '\b') valor = valor.slice(0, -1);
         else if (ch >= ' ') valor += ch;
       }

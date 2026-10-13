@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import '@/styles/legado/pagina-atos-outorga.css';
 import { SelectAutoEnvio } from '@/components/site/auto-envio';
@@ -101,7 +102,7 @@ export default async function AtosOutorga({ searchParams }: { searchParams: Prom
                       <td>{a.municipio}</td>
                       <td className="ato-assunto">{a.assunto}</td>
                       <td className="ato-doc">
-                        <a className="btn btn-sm btn-outline-primary" href={pdf(a.pdf)} target="_blank" rel="noopener">
+                        <a className="btn btn-sm btn-outline-primary" href={comBasePath(pdf(a.pdf))} target="_blank" rel="noopener">
                           <i className="bi bi-file-earmark-pdf me-1" />
                           Abrir
                         </a>

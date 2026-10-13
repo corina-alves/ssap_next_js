@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import Link from 'next/link';
 
 /** Grade de atalhos .quick-link (modelo de includes/pagina_documentos.php). */
@@ -27,7 +28,7 @@ export function Atalhos({ itens }: { itens: { titulo: string; desc?: string; hre
         return (
           <div className="col-md-6 col-xl-4" key={it.href + it.titulo}>
             {it.externo ? (
-              <a className="quick-link" href={it.href} target="_blank" rel="noopener">
+              <a className="quick-link" href={comBasePath(it.href)} target="_blank" rel="noopener">
                 {conteudo}
               </a>
             ) : (

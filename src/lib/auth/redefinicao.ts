@@ -1,13 +1,13 @@
 import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import type pg from 'pg';
-import { headers } from 'next/headers';
 import { auditar } from '../auditoria';
-import { pool, queryOne, transacao } from '../db';
+import { queryOne, transacao } from '../db';
 import { env } from '../env';
 import type { Origem } from '../requisicao';
 import { dadosPessoais, hashSenha, validarSenha } from './senha';
 import { revogarSessoes } from './sessao';
+import { montarLinkSenha } from './link';
 
 export const VALIDADE_HORAS = { novo: 72, redefinicao: 24 } as const;
 
@@ -24,8 +24,13 @@ export async function gerarToken(
   horas: number,
   c?: pg.PoolClient,
 ): Promise<string> {
+  if (!Number.isInteger(horas) || horas < 1 || horas > VALIDADE_HORAS.novo) throw new Error('Validade do link inválida.');
+  if (!c) return transacao((cliente) => gerarToken(usuarioId, criadoPor, horas, cliente));
+  // A geração concorrente só pode deixar um link válido por usuário.
+  const dono = await c.query('SELECT id FROM usuarios WHERE id = $1 AND status = \'ativo\' AND excluido_em IS NULL FOR UPDATE', [usuarioId]);
+  if (dono.rowCount !== 1) throw new Error('Usuário indisponível para redefinição de senha.');
   const token = randomBytes(32).toString('hex');
-  const executor = c ?? pool();
+  const executor = c;
   await executor.query('UPDATE senha_tokens SET usado_em = now() WHERE usuario_id = $1 AND usado_em IS NULL', [usuarioId]);
   await executor.query(
     `INSERT INTO senha_tokens (usuario_id, token_hash, expira_em, criado_por)
@@ -35,15 +40,9 @@ export async function gerarToken(
   return token;
 }
 
-/** URL absoluta da página de redefinição (APP_URL, ou o host da requisição). */
+/** URL absoluta canônica; em produção APP_URL é obrigatória. */
 export async function urlRedefinicao(token: string): Promise<string> {
-  let base = env().APP_URL;
-  if (!base) {
-    const h = await headers();
-    const proto = h.get('x-forwarded-proto') ?? (env().NODE_ENV === 'production' ? 'https' : 'http');
-    base = `${proto}://${h.get('x-forwarded-host') ?? h.get('host')}`;
-  }
-  return `${base.replace(/\/$/, '')}/acesso/redefinir-senha?token=${token}`;
+  return montarLinkSenha(env().APP_URL ?? 'http://localhost:3000/ssap', token);
 }
 
 export type DonoToken = { id: number; nome: string; email: string; login: string };
@@ -76,6 +75,8 @@ export async function redefinirComToken(
 
   const hash = await hashSenha(nova);
   const usado = await transacao(async (c) => {
+    const conta = await c.query('SELECT id FROM usuarios WHERE id = $1 AND status = \'ativo\' AND excluido_em IS NULL FOR UPDATE', [dono.id]);
+    if (conta.rowCount !== 1) return false;
     // Marca o token como usado primeiro: dois envios simultâneos não passam.
     const r = await c.query(
       'UPDATE senha_tokens SET usado_em = now() WHERE token_hash = $1 AND usado_em IS NULL AND expira_em > now()',

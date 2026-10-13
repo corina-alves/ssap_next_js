@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { Cabecalho } from '@/components/acesso/pecas';
@@ -47,7 +48,7 @@ export default async function PaginaPrevisoes({ searchParams }: { searchParams: 
       <div className="row g-3">
         {LINKS.map((l) => (
           <div key={l.href} className="col-md-6 col-xl-4">
-            <a className="acesso-link-card" href={l.href} target="_blank" rel="noopener">
+            <a className="acesso-link-card" href={comBasePath(l.href)} target="_blank" rel="noopener">
               <i className={`bi ${l.icone}`} />
               <span>
                 <strong>{l.titulo}</strong>

@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { AtoNormativo } from '@/components/site/ato-normativo';
@@ -44,8 +45,8 @@ export default function Pagina() {
       ]}
       orgaos={
         <>
-          <Image src="/legado/logo/ana.png" alt="Agência Nacional de Águas (ANA)" width={176} height={50} />
-          <Image src="/legado/logo/daee.png" alt="Departamento de Águas e Energia Elétrica (DAEE)" width={60} height={72} />
+          <Image src={comBasePath('/legado/logo/ana.png')} alt="Agência Nacional de Águas (ANA)" width={176} height={50} />
+          <Image src={comBasePath('/legado/logo/daee.png')} alt="Departamento de Águas e Energia Elétrica (DAEE)" width={60} height={72} />
         </>
       }
       destaque={{
@@ -89,7 +90,7 @@ export default function Pagina() {
         t.endsWith('conforme quadro a seguir:') && (
           <figure className="res-quadro">
             <Image
-              src="/legado/img/Anexo925a.jpg"
+              src={comBasePath('/legado/img/Anexo925a.jpg')}
               alt="Quadro com as cotas e os volumes mínimos e máximos operacionais e o volume útil de cada reservatório do Sistema Cantareira"
               width={709}
               height={180}

@@ -475,7 +475,7 @@
     // ------------------------------------------------------------ dados
     function carregar(atualizar) {
         status('Consultando SIBH, Open-Meteo e ANA/SAR…');
-        fetch('/api/acesso/boletim_paraiba/dados' + (atualizar ? '?atualizar=1' : ''), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        fetch('/ssap/api/acesso/boletim_paraiba/dados' + (atualizar ? '?atualizar=1' : ''), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
             .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.erro || ('HTTP ' + r.status)); return j; }); })
             .then(function (j) {
                 dados = j;

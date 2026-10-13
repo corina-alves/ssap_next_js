@@ -138,6 +138,8 @@ async function contarFalha(u: LinhaUsuario, origem: Origem): Promise<void> {
 }
 
 async function ipBloqueado(ip: string): Promise<boolean> {
+  // IP desconhecido não pode transformar a limitação em um bloqueio global.
+  if (ip === '0.0.0.0') return false;
   const r = await queryOne<{ n: number }>(
     `SELECT count(*)::int AS n FROM login_tentativas
       WHERE ip = $1 AND NOT sucesso AND criado_em > now() - make_interval(secs => $2)`,
@@ -163,6 +165,7 @@ export async function trocarSenha(
   confirmacao: string,
   origem: Origem,
 ): Promise<string[]> {
+  if (atual.length > SENHA.max) return ['A senha atual está incorreta.'];
   const linha = await queryOne<{ senha_hash: string }>('SELECT senha_hash FROM usuarios WHERE id = $1', [u.id]);
   if (!linha || !(await conferirSenha(linha.senha_hash, atual))) {
     await auditar({

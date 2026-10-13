@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { comBasePath } from '@/lib/base-path';
 
 /**
  * Carrega, em ordem, scripts originais do PHP (public/acesso/...) depois que a
@@ -18,7 +19,7 @@ export function ScriptsLegado({ scripts }: { scripts: string[] }) {
         if (cancelado) return;
         await new Promise<void>((ok) => {
           const s = document.createElement('script');
-          s.src = src;
+          s.src = comBasePath(src);
           s.onload = s.onerror = () => ok();
           document.body.appendChild(s);
           inseridos.push(s);

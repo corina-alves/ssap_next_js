@@ -307,7 +307,7 @@
     });
 
     // As divisas chegam depois: entram nos mapas já montados e a legenda é refeita com o item delas.
-    fetch('/acesso/geo/regionais_defesa_civil_linhas.json')
+    fetch('/ssap/acesso/geo/regionais_defesa_civil_linhas.json')
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
             if (!d || !d.linhas) return;

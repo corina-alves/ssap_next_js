@@ -3,6 +3,7 @@
 import Chart from 'chart.js/auto';
 import type { ChartConfiguration, ChartOptions, ScriptableContext } from 'chart.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { comBasePath, htmlComBasePath } from '@/lib/base-path';
 
 /**
  * Tela de um boletim mensal: busca o conteúdo montado no servidor
@@ -11,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * (valores ajustados e textos de análise) e do "Gerar PDF" (impressão).
  */
 
-const API = '/api/acesso/boletim_integrado';
+const API = comBasePath('/api/acesso/boletim_integrado');
 
 // Cores do logo SP Águas e variações; as cores de cota seguem o padrão de alerta.
 const SPA = { azul: '#0050FF', azulEscuro: '#0039C4', verde: '#00B154', azulClaro: '#5C8FFF', verdeClaro: '#4FD38A', marinho: '#00268A', verdeEscuro: '#00813D', celeste: '#9DBBFF' };
@@ -416,7 +417,7 @@ export function TelaBoletim({ tipo, ano, mes, nome, competencia }: { tipo: strin
           ref={alvo}
           className={`conteudo-boletim${emEdicao ? ' modo-edicao' : ''}`}
           aria-live="polite"
-          dangerouslySetInnerHTML={{ __html: html }}
+          dangerouslySetInnerHTML={{ __html: htmlComBasePath(html) }}
           onClick={(e) => {
             const span = emEdicao && (e.target as HTMLElement).tagName !== 'INPUT' ? (e.target as HTMLElement).closest<HTMLElement>('.editavel') : null;
             if (span) editarCelula(span);

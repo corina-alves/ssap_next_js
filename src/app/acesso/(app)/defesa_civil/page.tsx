@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { Cabecalho } from '@/components/acesso/pecas';
@@ -133,7 +134,7 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <link rel="stylesheet" href="/acesso/vendor/leaflet/leaflet.css" precedence="default" />
+      <link rel="stylesheet" href={comBasePath('/acesso/vendor/leaflet/leaflet.css')} precedence="default" />
       <Cabecalho
         titulo="Defesa Civil — situação dos rios, córregos e piscinões"
         subtitulo={`Postos fluviométricos do SIBH com cotas de alerta, por regional da Defesa Civil e por UGRHI. Dados de ${hora(situacao.gerado_em)} (atualiza a cada 3 min).`}
@@ -142,7 +143,7 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
           ['Defesa Civil', null],
         ]}
         acoes={
-          <a className="btn btn-outline-primary" href={`/acesso/defesa_civil?${parametros}`}>
+          <a className="btn btn-outline-primary" href={comBasePath(`/acesso/defesa_civil?${parametros}`)}>
             <i className="bi bi-arrow-clockwise me-1" /> Atualizar
           </a>
         }
@@ -237,7 +238,7 @@ export default async function DefesaCivil({ searchParams }: { searchParams: Prom
         <h2 className="acesso-card__titulo">
           <i className="bi bi-cloud-rain-heavy" /> Chuva — {chuvaEstado.municipios.length || 15} municípios com os maiores acumulados nas últimas {HORAS_CHUVA[horas]}
         </h2>
-        <form className="row g-2 align-items-end mb-3" method="get" action="/acesso/defesa_civil#chuva">
+        <form className="row g-2 align-items-end mb-3" method="get" action={comBasePath('/acesso/defesa_civil#chuva')}>
           {filtro && <input type="hidden" name="ugrhi" value={filtro} />}
           {horas !== 24 && <input type="hidden" name="horas" value={horas} />}
           <div className="col-md-6">

@@ -12,6 +12,18 @@ As migrações ficam em `migrations/` e são aplicadas em ordem. Cada uma roda e
 | `0006_pastas_boletins_copia_banco.sql` | Pasta de cada tipo de boletim (`tipos_boletim.pasta`) e tabela `arquivos_conteudo`, com a cópia dos PDFs de boletim |
 | `0007_titulo_fixo_tipo_boletim.sql` | `tipos_boletim.titulo_fixo`: tipos em que o título do boletim é fixo ("<título> — <data de referência>"), como o Sumário Executivo Tietê Pinheiros e o Sumário Executivo Ribeira |
 
+## Docker e produção Ubuntu
+
+Desenvolvimento: `compose.dev.yaml` inclui PostgreSQL e aplica as migrações automaticamente. Veja [DOCKER.md](../DOCKER.md).
+
+Produção usa o PostgreSQL existente e aplica migrações explicitamente com:
+
+```bash
+docker compose --env-file .env.docker run --rm ferramentas npm run db:migrar
+```
+
+Faça backup antes, confira o banco e as permissões DDL. Configure TLS/CA conforme DOCKER.md; não use o superusuário no app. A definição de produção não cria/apaga banco ou papel. Os scripts de migração atuam somente no schema da base configurada e precisam ser analisados se houver tabelas homônimas em base compartilhada.
+
 ## Criar o banco (Windows, recomendado)
 
 Na pasta do projeto:
