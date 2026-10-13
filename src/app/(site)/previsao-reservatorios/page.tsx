@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import '@/styles/legado/pagina-previsao-reservatorios.css';
 import { GraficoPrevisaoSistemas } from '@/components/graficos-php';
@@ -74,7 +75,7 @@ export default async function PrevisaoReservatorios() {
             <div className="row g-3">
               <div className="col-lg-6">
                 <Secao titulo="Localização dos sistemas" subtitulo="Área de drenagem de cada sistema produtor, colorida pela chuva prevista em 7 dias. Passe o mouse para ver a chuva de hoje; clique para ver os demais horizontes." icone="bi-geo-alt">
-                  <link rel="stylesheet" href="/acesso/vendor/leaflet/leaflet.css" precedence="default" />
+                  <link rel="stylesheet" href={comBasePath('/acesso/vendor/leaflet/leaflet.css')} precedence="default" />
                   <MapaSistemas
                     titulo={titulo}
                     sistemas={mapa.flatMap((x) => {

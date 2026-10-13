@@ -1,5 +1,6 @@
 'use client';
 
+import { comBasePath } from '@/lib/base-path';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
@@ -68,7 +69,7 @@ export function Moldura({
           </button>
           <Link className="acesso-topo__marca" href="/acesso">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/acesso/img/spaguas_white.png" alt="SP-Águas" />
+            <img src={comBasePath('/acesso/img/spaguas_white.png')} alt="SP-Águas" />
             <span>
               <strong>Salas de Situação</strong>
               <small>Área administrativa</small>

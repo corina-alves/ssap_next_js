@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import Link from 'next/link';
 import type { CSSProperties, ReactNode } from 'react';
 
@@ -72,7 +73,7 @@ export function MolduraAuth({ children }: { children: ReactNode }) {
       <main className="acesso-auth__wrap">
         <div className="acesso-auth__marca">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/acesso/img/spaguas_white.png" alt="SP-Águas" className="acesso-auth__logo" />
+          <img src={comBasePath('/acesso/img/spaguas_white.png')} alt="SP-Águas" className="acesso-auth__logo" />
           <div>
             <strong>Salas de Situação</strong>
             <span>Área administrativa</span>
@@ -136,7 +137,7 @@ export function FerramentasBoletim({ atalhos }: { atalhos: { titulo: string; des
       <div className="row g-2">
         {atalhos.map((t) => (
           <div key={t.href} className="col-lg-6">
-            <a className="acesso-link-card" href={t.href}>
+            <a className="acesso-link-card" href={comBasePath(t.href)}>
               <i className={`bi ${t.icone}`} />
               <span>
                 <strong>{t.titulo}</strong>

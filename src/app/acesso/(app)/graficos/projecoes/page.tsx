@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Cabecalho, Mensagem } from '@/components/acesso/pecas';
@@ -129,10 +130,10 @@ export default async function Projecoes({ searchParams }: { searchParams: Promis
             </div>
           ))}
           <div className="d-flex flex-wrap gap-2 mb-3">
-            <a className="btn btn-outline-secondary btn-sm" href={baixar('csv')}>
+            <a className="btn btn-outline-secondary btn-sm" href={comBasePath(baixar('csv'))}>
               <i className="bi bi-filetype-csv me-1" /> Dados consolidados (CSV)
             </a>
-            <a className="btn btn-outline-secondary btn-sm" href={baixar('txt')}>
+            <a className="btn btn-outline-secondary btn-sm" href={comBasePath(baixar('txt'))}>
               <i className="bi bi-file-text me-1" /> Resumo da marcação da GDN (TXT)
             </a>
             <span className="small text-secondary align-self-center">

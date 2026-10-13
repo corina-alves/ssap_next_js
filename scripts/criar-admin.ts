@@ -5,14 +5,16 @@
  */
 import { auditar } from '../src/lib/auditoria';
 import { dadosPessoais, hashSenha, validarSenha } from '../src/lib/auth/senha';
-import { pool, queryOne, transacao } from '../src/lib/db';
+import { encerrarPool, queryOne, transacao } from '../src/lib/db';
+import { ErroOperacional, erroParaOperador } from '../src/lib/erros';
+import { BASE_PATH } from '../src/lib/base-path';
 import { carregarEnv, perguntar } from './_comum';
 
 carregarEnv();
 
 async function principal(): Promise<void> {
   const perfil = await queryOne<{ id: number }>("SELECT id FROM perfis WHERE slug = 'admin_sistema'");
-  if (!perfil) throw new Error('Perfil admin_sistema não encontrado. Rode antes: npm run db:migrar');
+  if (!perfil) throw new ErroOperacional('Perfil admin_sistema não encontrado. Rode antes: npm run db:migrar');
 
   console.log('Novo Administrador do Sistema\n');
   const nome = await perguntar('Nome completo: ');
@@ -30,13 +32,13 @@ async function principal(): Promise<void> {
     [email, login],
   );
   if (repetido) erros.push('Já existe um usuário com este e-mail ou login.');
-  if (erros.length) throw new Error(erros.join('\n'));
+  if (erros.length) throw new ErroOperacional(erros.join('\n'));
 
   const senha = await perguntar('Senha (não aparece na tela): ', true);
   const confirmacao = await perguntar('Repita a senha: ', true);
-  if (senha !== confirmacao) throw new Error('A confirmação não confere com a senha.');
+  if (senha !== confirmacao) throw new ErroOperacional('A confirmação não confere com a senha.');
   const errosSenha = validarSenha(senha, dadosPessoais({ nome, email, login }));
-  if (errosSenha.length) throw new Error(errosSenha.join('\n'));
+  if (errosSenha.length) throw new ErroOperacional(errosSenha.join('\n'));
 
   const hash = await hashSenha(senha);
   const id = await transacao(async (c) => {
@@ -54,12 +56,12 @@ async function principal(): Promise<void> {
     );
     return novoId;
   });
-  console.log(`\nAdministrador criado (id ${id}). Entre em /acesso com o login "${login}".`);
+  console.log(`\nAdministrador criado (id ${id}). Entre em ${BASE_PATH}/acesso com o login "${login}".`);
 }
 
 principal()
   .catch((e) => {
-    console.error(`\n${(e as Error).message}`);
+    console.error(`\n${erroParaOperador(e)}`);
     process.exitCode = 1;
   })
-  .finally(() => pool().end());
+  .finally(encerrarPool);

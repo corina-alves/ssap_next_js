@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Indicadores } from '@/components/acesso/indicadores';
@@ -49,7 +50,7 @@ function CriarGraficos({ a, salas }: { a: Awaited<ReturnType<typeof acl>>; salas
           Escolha o período e o tipo; na página seguinte você seleciona até seis séries entre sistemas, reservatórios, túneis, ETAs, postos e
           bacias (chuva, vazões, volume, nível) e pode salvar o gráfico na sala.
         </p>
-        <form className="row g-2 align-items-end" method="get" action={base}>
+        <form className="row g-2 align-items-end" method="get" action={comBasePath(base)}>
           <input type="hidden" name="formato" value="tempo" />
           <input type="hidden" name="periodo" value="personalizado" />
           <div className="col-md-3">

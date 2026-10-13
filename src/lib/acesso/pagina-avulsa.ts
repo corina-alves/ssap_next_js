@@ -1,4 +1,5 @@
 import 'server-only';
+import { htmlComBasePath } from '../base-path';
 
 /**
  * Páginas de produção de boletim: documentos HTML completos, fora da moldura
@@ -52,7 +53,7 @@ ${p.miolo}
 ${scripts}
 </body>
 </html>`;
-  return new Response(html, {
+  return new Response(htmlComBasePath(html), {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Security-Policy': CSP,

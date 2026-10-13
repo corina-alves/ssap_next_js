@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import '@/styles/legado/pagina-boletins.css';
@@ -99,7 +100,7 @@ export default async function Documentos({ searchParams }: { searchParams: Promi
                       {d.descricao && <div className="small text-secondary mt-1">{d.descricao}</div>}
                     </div>
                     <div className="blt-item__acoes">
-                      <a className="btn btn-sm btn-primary" href={`/documentos/arquivo/${d.id}`} target="_blank" rel="noopener">
+                      <a className="btn btn-sm btn-primary" href={comBasePath(`/documentos/arquivo/${d.id}`)} target="_blank" rel="noopener">
                         <i className="bi bi-eye me-1" />
                         Abrir
                       </a>

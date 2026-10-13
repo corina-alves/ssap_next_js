@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
@@ -107,13 +108,13 @@ export default async function Painel({ searchParams }: { searchParams: Promise<R
 
   return (
     <div className="pnl" id="pnl">
-      <link rel="stylesheet" href="/acesso/vendor/leaflet/leaflet.css" precedence="default" />
+      <link rel="stylesheet" href={comBasePath('/acesso/vendor/leaflet/leaflet.css')} precedence="default" />
 
       <header className="pnl-top">
         <div className="pnl-brand">
           <Link href="/" title="Voltar ao site da Sala de Situação">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/legado/logo/spaguas_white.png" alt="SP Águas" />
+            <img src={comBasePath('/legado/logo/spaguas_white.png')} alt="SP Águas" />
           </Link>
           <div>
             <h1>Painel de Situação Hídrica</h1>

@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Cabecalho, Mensagem } from '@/components/acesso/pecas';
@@ -57,7 +58,7 @@ export default async function DadosExutorios({ searchParams }: { searchParams: P
             <Link className="btn btn-outline-secondary" href={hrefSala}>
               <i className="bi bi-arrow-left me-1" /> Voltar para a sala
             </Link>
-            <a className="btn btn-primary" href={hrefBoletim}>
+            <a className="btn btn-primary" href={comBasePath(hrefBoletim)}>
               <i className="bi bi-clipboard2-data me-1" /> Abrir o Boletim Exutórios ({comp})
             </a>
           </>

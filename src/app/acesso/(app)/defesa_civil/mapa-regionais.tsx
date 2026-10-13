@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { comBasePath } from '@/lib/base-path';
 
 export type RegionalMapa = {
   nome: string;
@@ -18,7 +19,7 @@ type Leaflet = any;
 
 const ROTULOS: Record<string, string> = { extravasamento: 'Extravasamento', emergencia: 'Emergência', alerta: 'Alerta', atencao: 'Atenção', normal: 'Normal' };
 const ORDEM = Object.keys(ROTULOS);
-const ARQUIVO = '/acesso/geo/regionais_defesa_civil_linhas.json';
+const ARQUIVO = comBasePath('/acesso/geo/regionais_defesa_civil_linhas.json');
 
 /** O Leaflet é carregado pela página (ScriptsLegado); espera ele chegar. */
 function esperarLeaflet(): Promise<Leaflet | null> {

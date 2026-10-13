@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -71,7 +72,7 @@ export default async function VerBoletim({ params, searchParams }: { params: Pro
               </Link>
             )}
             {b.pdf_arquivo_id && (
-              <a className="btn btn-primary" href={`${base}/pdf`} target="_blank" rel="noopener">
+              <a className="btn btn-primary" href={comBasePath(`${base}/pdf`)} target="_blank" rel="noopener">
                 <i className="bi bi-file-earmark-pdf me-1" /> Abrir PDF
               </a>
             )}
@@ -211,7 +212,7 @@ export default async function VerBoletim({ params, searchParams }: { params: Pro
                         <td className="small">{v.comentario ?? ''}</td>
                         <td>
                           {v.tem_pdf && (
-                            <a href={`${base}/pdf?v=${v.versao}`} target="_blank" rel="noopener" title="PDF desta versão" aria-label={`PDF da versão ${v.versao}`}>
+                            <a href={comBasePath(`${base}/pdf?v=${v.versao}`)} target="_blank" rel="noopener" title="PDF desta versão" aria-label={`PDF da versão ${v.versao}`}>
                               <i className="bi bi-file-earmark-pdf" />
                             </a>
                           )}

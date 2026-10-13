@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import { Carregando } from '@/components/carregando';
 import Link from 'next/link';
 import { Suspense } from 'react';
@@ -380,7 +381,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
               {DESTAQUES.map((d) => (
                 <div className="col" key={d.titulo}>
                   <Atalho href={d.href} externo={d.externo} className={`dq-card dq-card--${d.cor}`}>
-                    {d.img && <span className="dq-card__fundo" style={{ backgroundImage: `url('/legado/img/${d.img}')` }} />}
+                    {d.img && <span className="dq-card__fundo" style={{ backgroundImage: `url('${comBasePath(`/legado/img/${d.img}`)}')` }} />}
                     <span className="dq-card__icone">
                       <i className={`bi ${d.icone}`} />
                     </span>

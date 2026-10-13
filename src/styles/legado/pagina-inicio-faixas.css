@@ -13,7 +13,7 @@
     padding: 30px 38px; border-radius: 22px; overflow: hidden; color: #fff;
     background:
         linear-gradient(90deg, #062a5c 0%, rgba(6, 42, 92, .96) 45%, rgba(6, 42, 92, .7) 100%),
-        url('/legado/img/curva_contingencia.png') right center / cover no-repeat,
+        url('/ssap/legado/img/curva_contingencia.png') right center / cover no-repeat,
         #062a5c;
     box-shadow: 0 16px 38px rgba(6, 42, 92, .25);
 }

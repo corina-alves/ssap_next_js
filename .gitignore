@@ -4,10 +4,9 @@ out/
 next-env.d.ts
 *.tsbuildinfo
 
-.env
-.env.local
-.env.*.local
-.env.docker
+.env*
+!.env.example
+!.env.*.example
 
 # Docker: senhas, certificados e backups ficam fora do repositório
 secrets/

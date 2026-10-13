@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -61,7 +62,7 @@ export default async function PaginaBoletins({ searchParams }: { searchParams: P
       <FerramentasBoletim atalhos={atalhos} />
 
       <div className="acesso-card">
-        <form className="row g-2 mb-3" method="get" action={base}>
+        <form className="row g-2 mb-3" method="get" action={comBasePath(base)}>
           <input type="hidden" name="sala" value={sala.id} />
           <div className="col-md-3">
             <label className="visually-hidden" htmlFor="busca">

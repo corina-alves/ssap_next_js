@@ -1,13 +1,14 @@
 import 'server-only';
-import { createHash } from 'node:crypto';
-import { mkdir, readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
+import { createHash, randomBytes } from 'node:crypto';
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { chromium, type Browser } from 'playwright';
 import type { Acl } from '../auth/acl';
 import { query } from '../db';
 import { lembrar } from '../integracoes/cache';
 import { buscarJson } from '../integracoes/http';
 import { absoluto } from '../storage';
+import { criarFilaCapturas, type FilaCapturas } from './fila-capturas';
 
 /**
  * Sumários Executivos de Cheias (porte de acesso/sumario_executivo_cheias do
@@ -85,44 +86,78 @@ export async function proxySibh(parametros: URLSearchParams): Promise<Response> 
 const arquivoCaptura = (chave: ChaveSumario) => absoluto(`sumarios/diagrama_${chave}.png`);
 
 type Resultado = { success: true; path: string; geradoEm: string } | { success: false; error: string };
+type Captura = { success: true; geradoEm: string } | { success: false; error: string };
+
+const CACHE_CAPTURA_MS = 5 * 60_000;
+const PRAZO_CAPTURA_MS = 75_000;
+// Compartilha a fila mesmo com recargas em desenvolvimento ou módulos de rotas diferentes.
+const estado = globalThis as typeof globalThis & { __ssapFilaCapturas?: FilaCapturas<ChaveSumario, Captura> };
+const fila = (estado.__ssapFilaCapturas ??= criarFilaCapturas<ChaveSumario, Captura>(['tiete_pinheiros', 'ribeira_iguape']));
+
+async function capturaRecente(destino: string): Promise<string | null> {
+  try {
+    const s = await stat(/*turbopackIgnore: true*/ destino);
+    const idade = Date.now() - s.mtimeMs;
+    return s.isFile() && s.size > 0 && idade >= 0 && idade < CACHE_CAPTURA_MS ? s.mtime.toISOString() : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Screenshot colorido do diagrama ao vivo do SIBH, para o PDF (o iframe ao
  * vivo imprime com as cores clareadas pelo @media print da página do SIBH).
- * Precisa do pacote "playwright" instalado no servidor (opcional: npm install
- * playwright); sem ele a página avisa e imprime com o diagrama ao vivo.
+ * O Docker instala Playwright e Chromium. Reaproveita a captura por cinco minutos,
+ * agrupa pedidos iguais e executa somente um navegador por processo da aplicação.
  */
 export async function capturarDiagrama(chave: ChaveSumario, rota: string): Promise<Resultado> {
-  type Pagina = { goto(u: string, o: object): Promise<unknown>; waitForLoadState(e: string, o: object): Promise<void>; waitForTimeout(ms: number): Promise<void>; screenshot(o: object): Promise<unknown> };
-  type Navegador = { newPage(o: object): Promise<Pagina>; close(): Promise<void> };
-  let chromium: { launch(o?: object): Promise<Navegador> };
-  try {
-    // carregado só em tempo de execução, da pasta do servidor: não entra no pacote do build
-    ({ chromium } = createRequire(/*turbopackIgnore: true*/ `${process.cwd()}/`)('playwright'));
-  } catch {
-    return { success: false, error: 'captura indisponível neste servidor (pacote playwright não instalado)' };
-  }
+  if (!Object.hasOwn(SUMARIOS, chave)) return { success: false, error: 'Captura inválida.' };
+  const captura = await fila.executar(chave, () => gerarCaptura(chave));
+  return captura.success ? { ...captura, path: `${rota}?img=1` } : captura;
+}
+
+async function gerarCaptura(chave: ChaveSumario): Promise<Captura> {
   const { url, altura } = SUMARIOS[chave].diagrama;
   const destino = arquivoCaptura(chave);
-  let navegador: Navegador | undefined;
+  const recente = await capturaRecente(destino);
+  if (recente) return { success: true, geradoEm: recente };
+
+  const temporario = `${destino}.${randomBytes(8).toString('hex')}.tmp`;
+  const prazo = Date.now() + PRAZO_CAPTURA_MS;
+  const restante = (maximo: number) => {
+    const ms = prazo - Date.now();
+    if (ms <= 0) throw new Error('Prazo de captura esgotado.');
+    return Math.min(maximo, ms);
+  };
+  let navegador: Browser | undefined;
+  const cancelar = setTimeout(() => { void navegador?.close().catch(() => {}); }, PRAZO_CAPTURA_MS);
+  cancelar.unref();
   try {
     await mkdir(/*turbopackIgnore: true*/ dirname(destino), { recursive: true });
-    // Usa o Edge instalado no Windows; se não houver, o Chromium baixado pelo Playwright.
-    navegador = await chromium.launch({ channel: 'msedge' }).catch(() => chromium.launch());
+    // URLs fixas do SIBH; preserva também a sandbox do Chromium para conteúdo externo.
+    navegador = await chromium.launch({ chromiumSandbox: true, timeout: restante(15_000) });
     const pagina = await navegador.newPage({ viewport: { width: 1700, height: altura } });
-    await pagina.goto(url, { waitUntil: 'load', timeout: 30_000 });
+    pagina.setDefaultTimeout(restante(10_000));
+    await pagina.goto(url, { waitUntil: 'load', timeout: restante(30_000) });
     // espera a rede ficar ociosa (todas as leituras já carregadas e coloridas) e dá uma margem
     // para a última leva de cores; segue mesmo se ainda houver alguma requisição pendente
-    await pagina.waitForLoadState('networkidle', { timeout: 25_000 }).catch(() => {});
-    await pagina.waitForTimeout(6000);
+    await pagina.waitForLoadState('networkidle', { timeout: restante(20_000) }).catch(() => {});
+    await pagina.waitForTimeout(restante(6000));
     // recorta só a barra de menu do site (mantém a barra do diagrama e a legenda do rodapé)
-    await pagina.screenshot({ path: destino, clip: { x: 0, y: 64, width: 1700, height: altura - 64 } });
-    // a página acrescenta "?t=<hora>" a este endereço
-    return { success: true, path: `${rota}?img=1`, geradoEm: new Date().toISOString() };
-  } catch (e) {
-    return { success: false, error: (e as Error).message };
+    const png = await pagina.screenshot({ type: 'png', clip: { x: 0, y: 64, width: 1700, height: altura - 64 }, timeout: restante(10_000) });
+    restante(1);
+    // O leitor continua vendo a captura anterior até a nova estar inteiramente gravada.
+    await writeFile(/*turbopackIgnore: true*/ temporario, png, { flag: 'wx', mode: 0o640 });
+    await rename(/*turbopackIgnore: true*/ temporario, destino);
+    return { success: true, geradoEm: new Date().toISOString() };
+  } catch {
+    // Erros do navegador podem conter caminhos internos e URLs; não os expõe nem grava no log.
+    console.error('Falha ao capturar o diagrama do SIBH.', { diagrama: chave });
+    return { success: false, error: 'Não foi possível capturar o diagrama. Tente novamente em instantes.' };
   } finally {
+    clearTimeout(cancelar);
     await navegador?.close().catch(() => {});
+    await rm(/*turbopackIgnore: true*/ temporario, { force: true }).catch(() => {});
   }
 }
 

@@ -10,6 +10,9 @@
 set -eu
 
 nome="${1:-}"
+case "$nome" in
+  ''|*[!a-zA-Z0-9_-]*) echo 'restaurar: informe somente o nome da pasta do backup' >&2; exit 2 ;;
+esac
 origem="/backups/$nome"
 if [ -z "$nome" ] || [ ! -f "$origem/banco.dump" ]; then
   echo "Uso: restaurar <pasta do backup>. Backups disponíveis:" >&2
@@ -29,7 +32,11 @@ fi
 
 PGPASSWORD="$(tr -d '\r\n' < "${DB_SENHA_ARQUIVO:?defina DB_SENHA_ARQUIVO}")"
 export PGPASSWORD
-export PGHOST="${DB_HOST:-db}" PGPORT="${DB_PORTA:-5432}" PGUSER="${DB_USUARIO:-ssap_app}" PGDATABASE="${DB_NOME:-ssap}"
+export PGHOST="${DB_HOST:?defina DB_HOST}" PGPORT="${DB_PORTA:-5432}" PGUSER="${DB_USUARIO:?defina DB_USUARIO}" PGDATABASE="${DB_NOME:?defina DB_NOME}"
+export PGCONNECT_TIMEOUT=10
+if [ "${PGSSLMODE:-}" = verify-full ] && [ -z "${PGSSLROOTCERT:-}" ]; then
+  export PGSSLROOTCERT=system
+fi
 
 echo "restaurar: banco $PGDATABASE..."
 # uma transação só: ou restaura tudo, ou o banco fica como estava

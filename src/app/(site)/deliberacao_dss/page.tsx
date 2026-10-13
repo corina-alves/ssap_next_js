@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { AtoNormativo } from '@/components/site/ato-normativo';
@@ -30,7 +31,7 @@ export default function Pagina() {
         { icone: 'bi-bank', texto: 'Diário Oficial do Estado · Caderno Executivo · Atos Normativos' },
         { icone: 'bi-hash', texto: 'SEI nº 137.00009078/2023-49' },
       ]}
-      orgaos={<Image src="/legado/logo/brasao.png" alt="Brasão do Estado de São Paulo" width={62} height={72} />}
+      orgaos={<Image src={comBasePath('/legado/logo/brasao.png')} alt="Brasão do Estado de São Paulo" width={62} height={72} />}
       preambulo={PREAMBULO}
       verbo="Delibera:"
       dispositivos={DISPOSITIVOS}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Contorno } from '@/lib/integracoes/ibge';
+import { comBasePath } from '@/lib/base-path';
 
 export type SistemaMapa = {
   nome: string;
@@ -17,7 +18,7 @@ export type SistemaMapa = {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Leaflet = any;
 
-const SCRIPT = '/acesso/vendor/leaflet/leaflet.js';
+const SCRIPT = comBasePath('/acesso/vendor/leaflet/leaflet.js');
 
 /** Carrega o Leaflet (o mesmo da área /acesso) uma única vez. */
 export function carregarLeaflet(): Promise<Leaflet | null> {

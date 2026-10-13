@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { AtoNormativo, Dispositivo } from '@/components/site/ato-normativo';
@@ -53,8 +54,8 @@ export default function Pagina() {
       ]}
       orgaos={
         <>
-          <Image src="/legado/logo/brasao.png" alt="Brasão do Estado de São Paulo" width={62} height={72} />
-          <Image src="/legado/logo/spaguas.png" alt="SP-Águas" width={114} height={72} />
+          <Image src={comBasePath('/legado/logo/brasao.png')} alt="Brasão do Estado de São Paulo" width={62} height={72} />
+          <Image src={comBasePath('/legado/logo/spaguas.png')} alt="SP-Águas" width={114} height={72} />
         </>
       }
       preambulo={PREAMBULO}

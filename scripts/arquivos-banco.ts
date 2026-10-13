@@ -10,7 +10,8 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { pool, query } from '../src/lib/db';
+import { encerrarPool, query } from '../src/lib/db';
+import { erroParaOperador } from '../src/lib/erros';
 import { carregarEnv } from './_comum';
 
 carregarEnv();
@@ -74,7 +75,7 @@ async function principal(): Promise<void> {
 
 principal()
   .catch((e) => {
-    console.error((e as Error).message);
+    console.error(erroParaOperador(e));
     process.exitCode = 1;
   })
-  .finally(() => pool().end());
+  .finally(encerrarPool);

@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Cabecalho } from '@/components/acesso/pecas';
@@ -65,9 +66,9 @@ export default async function BoletimIntegrado({ searchParams }: { searchParams:
         </div>
         <div className="bi-faixa-logos">
           {/* eslint-disable @next/next/no-img-element */}
-          <img src={`${BASE}/img/logo-spaguas.png`} alt="SP Águas" />
-          <img src={`${BASE}/img/logo-cetesb.png`} alt="CETESB" />
-          <img src={`${BASE}/img/brasao.png`} alt="Brasão do Estado de São Paulo" />
+          <img src={comBasePath(`${BASE}/img/logo-spaguas.png`)} alt="SP Águas" />
+          <img src={comBasePath(`${BASE}/img/logo-cetesb.png`)} alt="CETESB" />
+          <img src={comBasePath(`${BASE}/img/brasao.png`)} alt="Brasão do Estado de São Paulo" />
           {/* eslint-enable @next/next/no-img-element */}
         </div>
       </div>
@@ -80,7 +81,7 @@ export default async function BoletimIntegrado({ searchParams }: { searchParams:
             </Link>
           ))}
         </nav>
-        <form method="get" action={`${BASE}/boletim`}>
+        <form method="get" action={comBasePath(`${BASE}/boletim`)}>
           <input type="hidden" name="tipo" value={tipo} />
           <div>
             <label htmlFor="mes">Mês</label>

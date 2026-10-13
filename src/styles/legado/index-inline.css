@@ -19,7 +19,7 @@
             rgba(8, 76, 150, 0.25) 70%, */
             rgba(8, 76, 150, 0.08) 100%
         ),
-        url('/legado/img/curva_contingencia.png');
+        url('/ssap/legado/img/curva_contingencia.png');
 
     background-size: cover;
     background-position: center;

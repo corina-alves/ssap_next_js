@@ -1,5 +1,6 @@
 'use client';
 
+import { comBasePath } from '@/lib/base-path';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from 'react';
 import { Canvas } from '@/components/graficos-php';
 import type { DadosDiario } from '@/lib/boletins-sala/diario';
@@ -12,7 +13,7 @@ import type { HistoricoMensal } from '@/lib/boletins-sala/diario-historico';
  * PPDC, até serem trocados. "Gerar PDF" imprime só as folhas.
  */
 
-const BASE = '/api/acesso/boletim_diario';
+const BASE = comBasePath('/api/acesso/boletim_diario');
 const API = `${BASE}/dados`;
 // área da imagem do IPMet: [lonMin, latMin, lonMax, latMax] (a mesma de lib/boletins-sala/radares.ts)
 const AREA_IPMET = [-56, -27, -42, -18] as const;
@@ -97,7 +98,7 @@ function Imagem({ k, dica, padrao }: { k: string; dica: string; padrao?: string 
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {url ? (
-        <img src={url} alt={dica} onError={() => setFalhou(url)} />
+        <img src={comBasePath(url)} alt={dica} onError={() => setFalhou(url)} />
       ) : (
         <span>
           {padrao ? `${dica}: não foi possível buscar automaticamente.` : dica}
@@ -176,7 +177,7 @@ function Topo({ k, titulo }: { k: string; titulo: string }) {
       <Ed tag="small" k="agencia" padrao="Agência de Águas do Estado de São Paulo" />
       <Ed tag="h2" k={k} padrao={titulo} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={LOGO} alt="SP Águas" />
+      <img src={comBasePath(LOGO)} alt="SP Águas" />
     </header>
   );
 }
@@ -196,8 +197,8 @@ function Capa({ d }: { d: DadosDiario }) {
       </div>
       <div className="bd-capa-logos">
         {/* eslint-disable @next/next/no-img-element */}
-        <img src={LOGO} alt="SP Águas" />
-        <img src="/legado/logo/brasaosp.png" alt="Governo do Estado de São Paulo" />
+        <img src={comBasePath(LOGO)} alt="SP Águas" />
+        <img src={comBasePath('/legado/logo/brasaosp.png')} alt="Governo do Estado de São Paulo" />
         {/* eslint-enable @next/next/no-img-element */}
       </div>
     </section>
@@ -421,7 +422,7 @@ function RadarIpmet({ d, versao }: { d: DadosDiario; versao: string }) {
     <>
       <div className="bd-mapa bd-mapa--radar">
         <svg viewBox={`0 0 ${p.L} ${p.A}`} role="img" aria-label="Acumulado de chuva em 24 horas estimado pelos radares do IPMet">
-          <image href={`${BASE}/radar?fonte=ipmet&v=${versao}`} x={0} y={0} width={p.L} height={p.A} preserveAspectRatio="none" onError={() => setFalhou(true)} />
+          <image href={comBasePath(`${BASE}/radar?fonte=ipmet&v=${versao}`)} x={0} y={0} width={p.L} height={p.A} preserveAspectRatio="none" onError={() => setFalhou(true)} />
           <path className="contorno" d={caminho(d.contorno, p)} />
         </svg>
         <div className="bd-trocar sem-imprimir">
@@ -429,7 +430,7 @@ function RadarIpmet({ d, versao }: { d: DadosDiario; versao: string }) {
         </div>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="bd-escala-img" src={`${BASE}/radar?fonte=ipmet-escala`} alt="Escala de cores do acumulado, em milímetros" />
+      <img className="bd-escala-img" src={comBasePath(`${BASE}/radar?fonte=ipmet-escala`)} alt="Escala de cores do acumulado, em milímetros" />
     </>
   );
 }

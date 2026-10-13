@@ -9,9 +9,9 @@ import { Formulario } from '../formulario';
 
 export const metadata: Metadata = {
   title: 'Definir senha',
-  // O token vai na URL: não repassar a outros sites. Não pode ser 'no-referrer': o navegador
-  // mandaria "Origin: null" ao salvar e o Next recusa a server action.
-  referrer: 'same-origin',
+  // Envia apenas a origem: preserva Origin no POST da Server Action e impede que
+  // token/path apareçam em Referer de assets, navegação ou prefetch do Next.
+  referrer: 'origin',
 };
 
 export default async function PaginaRedefinir({ searchParams }: { searchParams: Promise<{ token?: string }> }) {

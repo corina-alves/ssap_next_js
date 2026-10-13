@@ -1,5 +1,6 @@
 'use client';
 
+import { comBasePath } from '@/lib/base-path';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
@@ -95,7 +96,7 @@ export function Cabecalho() {
       <div className="container sssp-nav-shell">
         <Link className="navbar-brand sssp-brand" href="/" aria-label="Sala de Situação Alfredo Pisani - Início">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/legado/logo/spaguas_white.png" alt="SP-Águas" className="sssp-brand-logo" />
+          <img src={comBasePath('/legado/logo/spaguas_white.png')} alt="SP-Águas" className="sssp-brand-logo" />
           <span className="sssp-brand-copy d-none d-sm-flex">
             <strong>Sala de Situação</strong>
             <small>Alfredo Pisani</small>

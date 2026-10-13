@@ -3,7 +3,7 @@
     min-height: 520px; padding: 56px 0;
     background-image:
         linear-gradient(90deg, #04213f 0%, rgba(5, 40, 78, .94) 22%, rgba(6, 52, 98, .55) 42%, rgba(6, 52, 98, 0) 62%),
-        url('/legado/img/hero-barragem.jpg');
+        url('/ssap/legado/img/hero-barragem.jpg');
     background-size: cover; background-position: center;
 }
 .public-page .hero::before { background: radial-gradient(circle at 0% 100%, rgba(20, 169, 209, .22), transparent 32%); }
@@ -60,7 +60,7 @@
 .hp-previsao__chuva strong { color: #1565d8; font-size: 1.7rem; }
 
 @media (max-width: 991.98px) {
-    .public-page .hero { background-image: linear-gradient(180deg, rgba(4, 33, 63, .94) 0%, rgba(5, 40, 78, .82) 60%, rgba(6, 52, 98, .55) 100%), url('/legado/img/hero-barragem.jpg'); }
+    .public-page .hero { background-image: linear-gradient(180deg, rgba(4, 33, 63, .94) 0%, rgba(5, 40, 78, .82) 60%, rgba(6, 52, 98, .55) 100%), url('/ssap/legado/img/hero-barragem.jpg'); }
     .public-page .hero .hero-weather-card { margin: 0 auto; }
 }
 @media (max-width: 575.98px) {

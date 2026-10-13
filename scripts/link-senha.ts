@@ -6,7 +6,10 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { auditar } from '../src/lib/auditoria';
-import { pool, queryOne, transacao } from '../src/lib/db';
+import { encerrarPool, queryOne, transacao } from '../src/lib/db';
+import { env } from '../src/lib/env';
+import { ErroOperacional, erroParaOperador } from '../src/lib/erros';
+import { montarLinkSenha } from '../src/lib/auth/link';
 import { carregarEnv } from './_comum';
 
 carregarEnv();
@@ -16,18 +19,20 @@ const HORAS = 24;
 
 async function principal(): Promise<void> {
   const alvo = (process.argv[2] ?? '').trim().toLowerCase();
-  if (!alvo) throw new Error('Uso: npm run senha:link -- <login ou e-mail>');
+  if (!alvo) throw new ErroOperacional('Uso: npm run senha:link -- <login ou e-mail>');
 
   const u = await queryOne<{ id: number; nome: string; login: string; status: string }>(
     `SELECT id, nome, login, status FROM usuarios
       WHERE excluido_em IS NULL AND (lower(login) = $1 OR lower(email) = $1)`,
     [alvo],
   );
-  if (!u) throw new Error(`Usuário não encontrado: ${alvo}`);
-  if (u.status !== 'ativo') throw new Error(`O usuário ${u.login} está ${u.status}. Reative-o antes de gerar o link.`);
+  if (!u) throw new ErroOperacional('Usuário não encontrado.');
+  if (u.status !== 'ativo') throw new ErroOperacional('O usuário está inativo/bloqueado. Reative-o antes de gerar o link.');
 
   const token = randomBytes(32).toString('hex');
   await transacao(async (c) => {
+    const ativo = await c.query('SELECT id FROM usuarios WHERE id = $1 AND status = \'ativo\' AND excluido_em IS NULL FOR UPDATE', [u.id]);
+    if (ativo.rowCount !== 1) throw new ErroOperacional('O usuário está indisponível para redefinição.');
     await c.query('UPDATE senha_tokens SET usado_em = now() WHERE usuario_id = $1 AND usado_em IS NULL', [u.id]);
     await c.query(
       `INSERT INTO senha_tokens (usuario_id, token_hash, expira_em)
@@ -41,14 +46,14 @@ async function principal(): Promise<void> {
     );
   });
 
-  const base = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const base = env().APP_URL ?? 'http://localhost:3000/ssap';
   console.log(`Link para ${u.nome} (${u.login}), válido por ${HORAS} horas, uso único:\n`);
-  console.log(`${base}/acesso/redefinir-senha?token=${token}`);
+  console.log(montarLinkSenha(base, token));
 }
 
 principal()
   .catch((e) => {
-    console.error((e as Error).message);
+    console.error(erroParaOperador(e));
     process.exitCode = 1;
   })
-  .finally(() => pool().end());
+  .finally(encerrarPool);

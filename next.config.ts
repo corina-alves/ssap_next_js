@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { BASE_PATH } from './src/lib/base-path';
 
 const cabecalhosSeguranca = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -8,12 +9,19 @@ const cabecalhosSeguranca = [
 ];
 
 const nextConfig: NextConfig = {
+  // Também no desenvolvimento: links, APIs e assets são validados no endereço real.
+  basePath: BASE_PATH,
   // Pacote mínimo para produção/Docker (.next/standalone + server.js).
   output: 'standalone',
+  // Playwright lê metadados/recursos em runtime que o tracing estático não alcança.
+  outputFileTracingIncludes: {
+    '/acesso/sumario_executivo_cheias/*': ['node_modules/playwright/**/*', 'node_modules/playwright-core/**/*'],
+  },
   poweredByHeader: false,
   // Só no "next dev": o Docker de desenvolvimento é aberto por 127.0.0.1; sem isto o Next
   // bloqueia os recursos de desenvolvimento e os componentes de cliente (gráficos) não rodam.
-  allowedDevOrigins: ['127.0.0.1'],  // pg e argon2 (módulo nativo) rodam só no Node, fora do bundle.
+  allowedDevOrigins: ['127.0.0.1'],
+  // pg e argon2 (módulo nativo) rodam só no Node, fora do bundle.
   serverExternalPackages: ['pg', '@node-rs/argon2'],
   experimental: {
     // Upload de PDF de boletim (até 30 MB) + folga do multipart.
@@ -60,7 +68,11 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
-    return [{ source: '/:path*', headers: cabecalhosSeguranca }];
+    return [
+      { source: '/:path*', headers: cabecalhosSeguranca },
+      // Tokens da URL de senha não podem aparecer no Referer dos assets/logs.
+      { source: '/acesso/redefinir-senha', headers: [{ key: 'Referrer-Policy', value: 'origin' }] },
+    ];
   },
 };
 

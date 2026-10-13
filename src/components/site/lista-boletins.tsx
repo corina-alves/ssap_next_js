@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import Link from 'next/link';
 import { dataBr } from '@/lib/formato';
 import { contagemPorTipo, listarPublicados, sugestoesBoletins, type BoletimPublico } from '@/lib/publico';
@@ -82,7 +83,7 @@ export async function ListaBoletins({
         </div>
       </div>
       <div className="sssp-section-card__body">
-        <form className="blt-toolbar" method="get" action={base}>
+        <form className="blt-toolbar" method="get" action={comBasePath(base)}>
           <div className="blt-filtros">
             {comFiltroTipo && (
               <div className="sssp-field">
@@ -145,11 +146,11 @@ export async function ListaBoletins({
                       </div>
                     </div>
                     <div className="blt-item__acoes">
-                      <a className="btn btn-sm btn-primary" href={href} target="_blank" rel="noopener">
+                      <a className="btn btn-sm btn-primary" href={comBasePath(href)} target="_blank" rel="noopener">
                         <i className="bi bi-eye me-1" />
                         Visualizar
                       </a>
-                      <a className="btn btn-sm btn-outline-primary" href={`${href}?baixar=1`}>
+                      <a className="btn btn-sm btn-outline-primary" href={comBasePath(`${href}?baixar=1`)}>
                         <i className="bi bi-download me-1" />
                         Baixar
                       </a>

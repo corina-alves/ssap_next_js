@@ -9,9 +9,11 @@ if [ -n "${APP_DB_PASSWORD_FILE:-}" ]; then
   APP_DB_PASSWORD="$(tr -d '\r\n' < "$APP_DB_PASSWORD_FILE")"
 fi
 : "${APP_DB_PASSWORD:?defina o segredo APP_DB_PASSWORD_FILE (ou APP_DB_PASSWORD)}"
+export APP_DB_PASSWORD
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
-  -v usuario="$APP_DB_USER" -v senha="$APP_DB_PASSWORD" -v banco="$POSTGRES_DB" <<'SQL'
+  -v usuario="$APP_DB_USER" -v banco="$POSTGRES_DB" <<'SQL'
+\getenv senha APP_DB_PASSWORD
 CREATE ROLE :"usuario" LOGIN PASSWORD :'senha' NOSUPERUSER NOCREATEDB NOCREATEROLE;
 ALTER DATABASE :"banco" OWNER TO :"usuario";
 REVOKE ALL ON DATABASE :"banco" FROM PUBLIC;

@@ -1,3 +1,4 @@
+import { comBasePath } from '@/lib/base-path';
 import Link from 'next/link';
 import mapa from '@/conteudo/ugrhi-mini.json';
 
@@ -126,7 +127,7 @@ export function SalasSituacao() {
               </div>
             </>
           );
-          const atributos = { className: `rs-card rs-card--${s.cor}`, style: { backgroundImage: `url('/legado/img/${s.img}')` } };
+          const atributos = { className: `rs-card rs-card--${s.cor}`, style: { backgroundImage: `url('${comBasePath(`/legado/img/${s.img}`)}')` } };
           return (
             <div className="col" key={s.tag}>
               {s.externo ? (
