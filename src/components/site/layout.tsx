@@ -85,8 +85,8 @@ export function Rodape() {
               <div className="sssp-footer__brand">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/legado/logo/spaguas_white.png" alt="SP Águas" />
-                <strong>Sala de Situação São Paulo</strong>
-                <span>Alfredo Pisani — SP Águas, Agência de Águas do Estado de São Paulo</span>
+                <strong>Agência de Águas do Estado de São Paulo</strong>
+                <span>Sala de Situação Alfredo Pisani</span>
               </div>
               <div>
                 <h4>Institucional</h4>

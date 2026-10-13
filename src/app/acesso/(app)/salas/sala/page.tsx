@@ -14,9 +14,18 @@ const GRUPOS_ATALHO = [
   ['graficos', 'Gráficos', 'bi-graph-up'],
 ] as const;
 
-/** Visão geral de uma sala: módulos habilitados e indicadores (salas/sala.php). */
-export default async function PaginaSala({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
-  const { s = '' } = await searchParams;
+const ABAS = [
+  ['', 'Produzir e publicar', 'bi-tools'],
+  ['resumo', 'Resumo do que foi feito', 'bi-clipboard-data'],
+] as const;
+
+/**
+ * Visão geral de uma sala (salas/sala.php), em duas abas: o que produzir
+ * (módulos e atalhos) e o resumo do que já foi feito (indicadores).
+ */
+export default async function PaginaSala({ searchParams }: { searchParams: Promise<{ s?: string; aba?: string }> }) {
+  const { s = '', aba: abaPedida } = await searchParams;
+  const aba = abaPedida === 'resumo' ? 'resumo' : '';
   if (!s) redirect('/acesso');
   const a = await acl(); // login primeiro: sem sessão, nem revela se a sala existe
   const { id } = await exigirSala(s); // 404 ou "sem acesso" antes de qualquer saída
@@ -35,6 +44,23 @@ export default async function PaginaSala({ searchParams }: { searchParams: Promi
         ]}
       />
 
+      <ul className="nav nav-tabs mb-4">
+        {ABAS.map(([chave, rotulo, icone]) => (
+          <li key={chave} className="nav-item">
+            <Link
+              className={`nav-link ${aba === chave ? 'active' : ''}`}
+              aria-current={aba === chave ? 'page' : undefined}
+              href={`/acesso/salas/sala?s=${sala.slug}${chave ? `&aba=${chave}` : ''}`}
+            >
+              <i className={`bi ${icone} me-1`} /> {rotulo}
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {aba === 'resumo' && <Indicadores a={a} salas={[sala.id]} salaId={sala.id} parte="resumo" />}
+
+      {aba === '' && (
       <div className="row g-3 mb-4">
         {sala.modulos.map((m) => {
           const def = MODULOS[m.slug];
@@ -59,8 +85,9 @@ export default async function PaginaSala({ searchParams }: { searchParams: Promi
           );
         })}
       </div>
+      )}
 
-      {GRUPOS_ATALHO.map(([modulo, titulo, icone]) => {
+      {aba === '' && GRUPOS_ATALHO.map(([modulo, titulo, icone]) => {
         const doModulo = atalhos.filter((t) => t.modulo === modulo);
         return doModulo.length === 0 ? null : (
         <section key={modulo} className="acesso-card mb-4">
@@ -84,7 +111,7 @@ export default async function PaginaSala({ searchParams }: { searchParams: Promi
         );
       })}
 
-      <Indicadores a={a} salas={[sala.id]} salaId={sala.id} />
+      {aba === '' && <Indicadores a={a} salas={[sala.id]} salaId={sala.id} parte="gerar" />}
     </>
   );
 }

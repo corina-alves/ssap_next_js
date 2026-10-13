@@ -11,7 +11,9 @@ const nextConfig: NextConfig = {
   // Pacote mínimo para produção/Docker (.next/standalone + server.js).
   output: 'standalone',
   poweredByHeader: false,
-  // pg e argon2 (módulo nativo) rodam só no Node, fora do bundle.
+  // Só no "next dev": o Docker de desenvolvimento é aberto por 127.0.0.1; sem isto o Next
+  // bloqueia os recursos de desenvolvimento e os componentes de cliente (gráficos) não rodam.
+  allowedDevOrigins: ['127.0.0.1'],  // pg e argon2 (módulo nativo) rodam só no Node, fora do bundle.
   serverExternalPackages: ['pg', '@node-rs/argon2'],
   experimental: {
     // Upload de PDF de boletim (até 30 MB) + folga do multipart.

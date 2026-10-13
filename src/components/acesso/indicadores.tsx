@@ -20,18 +20,42 @@ const CARDS: [keyof Contagem, string, string, string][] = [
 
 const dentro = (salas: number[], a: Acl, permissao: string) => salas.filter((id) => a.pode(permissao, id));
 
+function GerarBoletim({ atalhos }: { atalhos: Awaited<ReturnType<typeof atalhosGeracao>> }) {
+  if (atalhos.length === 0) return null;
+  return (
+    <section className="acesso-card mb-3">
+      <h2 className="acesso-card__titulo">
+        <i className="bi bi-lightning-charge" /> Gerar boletim
+      </h2>
+      <div className="acesso-atalhos">
+        {atalhos.map((t) => (
+          <Link key={t.id} className="acesso-atalho" href={`/acesso/boletins/novo?tipo=${t.id}`}>
+            <i className="bi bi-file-earmark-arrow-up" />
+            <span>
+              <strong>{t.nome}</strong>
+              <small>{t.sala} · cadastrar PDF</small>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /**
  * Bloco de indicadores do painel geral (salaId null) ou de uma sala
- * (partials/dashboard.php).
+ * (partials/dashboard.php). `parte` mostra só um lado: 'gerar' (atalhos para
+ * cadastrar boletim) ou 'resumo' (o que já foi feito); sem ela, tudo.
  */
-export async function Indicadores({ a, salas, salaId }: { a: Acl; salas: number[]; salaId: number | null }) {
+export async function Indicadores({ a, salas, salaId, parte }: { a: Acl; salas: number[]; salaId: number | null; parte?: 'gerar' | 'resumo' }) {
+  if (parte === 'gerar') return <GerarBoletim atalhos={await atalhosGeracao(dentro(salas, a, 'criar_boletim'))} />;
   const salasBoletim = dentro(salas, a, 'visualizar_boletins');
   const salasDocs = dentro(salas, a, 'visualizar_documentos');
   const [contagem, ultimos, documentos, atalhos, recentes] = await Promise.all([
     boletinsPorStatus(salasBoletim),
     ultimosBoletins(salasBoletim),
     documentosRecentes(salasDocs),
-    atalhosGeracao(dentro(salas, a, 'criar_boletim')),
+    parte === 'resumo' ? [] : atalhosGeracao(dentro(salas, a, 'criar_boletim')),
     atividades(a, salaId),
   ]);
 
@@ -55,24 +79,7 @@ export async function Indicadores({ a, salas, salaId }: { a: Acl; salas: number[
 
       <div className="row g-3">
         <div className="col-xl-8">
-          {atalhos.length > 0 && (
-            <section className="acesso-card mb-3">
-              <h2 className="acesso-card__titulo">
-                <i className="bi bi-lightning-charge" /> Gerar boletim
-              </h2>
-              <div className="acesso-atalhos">
-                {atalhos.map((t) => (
-                  <Link key={t.id} className="acesso-atalho" href={`/acesso/boletins/novo?tipo=${t.id}`}>
-                    <i className="bi bi-file-earmark-arrow-up" />
-                    <span>
-                      <strong>{t.nome}</strong>
-                      <small>{t.sala} · cadastrar PDF</small>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
+          <GerarBoletim atalhos={atalhos} />
 
           {salasBoletim.length > 0 && (
             <section className="acesso-card mb-3">
