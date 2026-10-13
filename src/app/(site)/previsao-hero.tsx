@@ -1,5 +1,6 @@
 'use client';
 
+import { Carregando } from '@/components/carregando';
 import { useRef, useState, useTransition } from 'react';
 import { previsaoHero, type PrevisaoHero as Previsao } from './previsao-hero-acao';
 
@@ -29,7 +30,7 @@ export function PrevisaoHero({ municipios, municipio, inicial }: { municipios: s
           Selecione o município
           {carregando && (
             <span className="hp-carregando">
-              <span className="spinner-border spinner-border-sm" aria-hidden /> Buscando previsão…
+              <Carregando linha>Buscando previsão…</Carregando>
             </span>
           )}
         </label>

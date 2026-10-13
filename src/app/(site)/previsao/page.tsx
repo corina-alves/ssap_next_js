@@ -1,15 +1,16 @@
+// import { Carregando } from '@/components/carregando'; // mapa de previsão desativado
 import type { Metadata } from 'next';
-import Link from 'next/link';
+// import Link from 'next/link'; // mapa de previsão desativado
 import { Suspense } from 'react';
 import '@/styles/legado/pagina-previsao.css';
 import { GraficoPrevisaoMunicipio } from '@/components/graficos-php';
-import { MapaGrade } from '@/components/graficos/mapa-grade';
+// import { MapaGrade } from '@/components/graficos/mapa-grade'; // mapa de previsão desativado
 import { texto } from '@/components/paginacao';
 import { Hero, Principal, Secao } from '@/components/site/layout';
 import { dataBr, dataHora } from '@/lib/formato';
 import { localizarMunicipio, type Local } from '@/lib/hidrologia/previsao';
-import { contornoSP, municipiosSP } from '@/lib/integracoes/ibge';
-import { condicao, gradeEstado, previsaoMunicipio } from '@/lib/integracoes/openmeteo';
+import { /* contornoSP, */ municipiosSP } from '@/lib/integracoes/ibge';
+import { condicao, /* gradeEstado, */ previsaoMunicipio } from '@/lib/integracoes/openmeteo';
 
 export const metadata: Metadata = {
   title: 'Previsão para os Municípios',
@@ -148,6 +149,7 @@ async function PrevisaoMunicipio({ local }: { local: Local }) {
   );
 }
 
+/* Mapa de previsão do Estado desativado (comentado a pedido em 13/10/2026).
 async function MapaEstado({ horizonte, municipio, local }: { horizonte: Horizonte; municipio: string; local: Local | null }) {
   const [g, c] = await Promise.all([gradeEstado(Number(horizonte)), contornoSP()]);
   const q = (h: string) => `/previsao?${new URLSearchParams({ ...(municipio ? { municipio } : {}), horizonte: h })}#mapa`;
@@ -180,6 +182,7 @@ async function MapaEstado({ horizonte, municipio, local }: { horizonte: Horizont
     </>
   );
 }
+*/
 
 export default async function Previsao({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
@@ -239,16 +242,18 @@ export default async function Previsao({ searchParams }: { searchParams: Promise
           </Suspense>
         )}
 
+        {/* Mapa de previsão do Estado desativado (comentado a pedido em 13/10/2026).
         <Secao
           id="mapa"
           titulo="Chuva prevista no Estado de São Paulo"
           subtitulo="Grade de precipitação acumulada, com dados reais da Open-Meteo. Escolha o horizonte de tempo."
           icone="bi-map"
         >
-          <Suspense fallback={<div className="sssp-status">Carregando mapa...</div>}>
+          <Suspense fallback={null}>
             <MapaEstado horizonte={horizonte} municipio={municipio} local={local.ok ? local.local : null} />
           </Suspense>
         </Secao>
+        */}
       </Principal>
     </>
   );

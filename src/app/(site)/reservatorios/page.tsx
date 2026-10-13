@@ -1,3 +1,4 @@
+import { Carregando } from '@/components/carregando';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import '@/styles/legado/pagina-reservatorios.css';
@@ -208,7 +209,7 @@ function Conteudo({ d }: { d: PainelReservatorios }) {
         subtitulo="Operação da interligação Jaguari (PS) → Atibainha (SC) no ano e enquadramento no limite anual vigente."
         icone="bi-arrow-left-right"
       >
-        <Suspense fallback={<p className="sssp-status">Carregando...</p>}>
+        <Suspense fallback={<Carregando>Carregando…</Carregando>}>
           <TransposicaoNoAno ate={d.dataUsada} />
         </Suspense>
       </Secao>
@@ -249,7 +250,7 @@ function Conteudo({ d }: { d: PainelReservatorios }) {
         </div>
       </Secao>
 
-      <Suspense fallback={<p className="sssp-status">Carregando as séries anuais desde 2010...</p>}>
+      <Suspense fallback={<Carregando>Carregando as séries anuais desde 2010…</Carregando>}>
         <SeriesAnuais dataBase={d.dataUsada} />
       </Suspense>
     </>

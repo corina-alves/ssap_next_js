@@ -1,3 +1,4 @@
+import { Carregando } from '@/components/carregando';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import '@/styles/legado/estilo-inicio.css';
@@ -266,7 +267,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
                     {dataBr(hojeSp())}
                   </span>
                 </div>
-                <Suspense fallback={<div className="text-secondary py-4 text-center">Carregando previsão...</div>}>
+                <Suspense fallback={<Carregando>Carregando previsão…</Carregando>}>
                   <CartaoPrevisao municipio={municipio} />
                 </Suspense>
               </div>
@@ -321,7 +322,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
                 <p>Evolução do Cantareira e documentos de referência.</p>
               </div>
             </div>
-            <Suspense fallback={<div className="text-secondary py-4 text-center">Carregando dados...</div>}>
+            <Suspense fallback={<Carregando>Carregando dados…</Carregando>}>
               <AcompanhamentoVolume />
             </Suspense>
           </section>
@@ -338,7 +339,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
               </a>
             </div>
             <div className="row g-3">
-              <Suspense fallback={<div className="col-12 text-center text-secondary py-4">Carregando previsão dos sistemas produtores...</div>}>
+              <Suspense fallback={<Carregando className="col-12">Carregando previsão dos sistemas produtores…</Carregando>}>
                 <PrevisaoSistemas />
               </Suspense>
             </div>
@@ -363,7 +364,7 @@ export default async function Inicio({ searchParams }: { searchParams: Promise<R
                 </p>
               </div>
             </div>
-            <Suspense fallback={<div className="text-secondary py-4 text-center">Carregando dados...</div>}>
+            <Suspense fallback={<Carregando>Carregando dados…</Carregando>}>
               <FaixasAtuacao />
             </Suspense>
           </section>
